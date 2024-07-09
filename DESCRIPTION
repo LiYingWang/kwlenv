@@ -1,9 +1,9 @@
 Package: kwlenv
-Title: A research compendium for Kiwulan study
+Title: Compendium of R code and data for KWL research
 Version: 0.0.0.9000
 Authors@R:
     person("Liying", "Wang", , "liyingw15@gmail.com", role = c("aut", "cre"))
-Description: A research compendium for Kiwulan study
+Description: Compendium of R code and data for KWL research
 License: MIT + file LICENSE
 ByteCompile: true
 Encoding: UTF-8
