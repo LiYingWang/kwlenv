@@ -24,52 +24,51 @@ kwl_chro_tidy_6 <-
   mutate(layer = str_sub(layer, 2, 3)) %>%
   mutate(layer = ifelse(nchar(layer) == 1, paste0("0", layer), layer))
 
-# combine faunal data from cultural layers and temporal sequences
+# combine faunal data of cultural layers and temporal sequences
 fauna_sam <-
   kwl_fauna %>%
   mutate(Pit = paste(context, pit, sep = "")) %>%
   filter(Pit %in% sample_p$the_sq) %>%
   filter(componant == "上文化層" &!layer == "00") %>% #remove sc
-  filter(!str_detect(`總報告類別`, "[[:punct:]]+|[0-9]+")) %>%
+  #filter(!str_detect(`總報告類別`, "[[:punct:]]+|[0-9]+")) %>%
   mutate(area = ifelse(is.na(area), "C", area)) %>% # assign an area to the blanks, which won't change the results
-  left_join(kwl_chro_tidy_6, by = c("Pit" = "Pit", "layer" = "layer", "area" = "area")) %>%
-  select(-section)
+  left_join(kwl_chro_tidy_6, by = c("Pit" = "Pit", "layer" = "layer", "area" = "area"))
 
-broken <- kwl_fauna %>% filter(`部位/名稱` == "碎骨")
-
-# combine faunal data from middens and temporal sequences
+# combine faunal data of middens and temporal sequences
 fauna_H_sam <-
   kwl_fauna_HM %>%
+  select(-`空間號`, -`層   位`) %>%
   mutate(Pit = paste("P", pit, sep = "")) %>%
   filter(Pit %in% sample_p$the_sq) %>%
   filter(componant == "上文化層") %>%
-  filter(!str_detect(`總報告類別`, "[[:punct:]]+|[0-9]+")) %>%
   left_join(kwl_chro_tidy_6, by = c("Pit" = "Pit", "layer" = "layer", "area" = "area"))
 
-# tidy data
+# combine and tidy data from midden and cultural layers
 fauna_combined_context <-
   rbind(fauna_sam, fauna_H_sam) %>% # combine the two datasets
   mutate(`重量(g)` = as.numeric(`重量(g)`)) %>%
   mutate(`種屬/屬類` = ifelse(is.na(`種屬/屬類`), "none", `種屬/屬類`)) %>%
   mutate(period = factor(period, levels = c("CL1","CL2","CL3","CL4","CL5","CL6"), order = T)) %>%
-  mutate(taxa = case_when(`總報告類別` == "鹿" ~ "Deer",
-                          `總報告類別` == "豬" ~ "Pig",
-                          `總報告類別` == "牛" ~ "Cattle",
-                          `總報告類別` == "魚" ~ "Fish",
-                          `總報告類別` == "鳥" ~ "Bird",
-                          `總報告類別` == "囓齒" ~ "Rodent")) %>%
-  mutate(taxa = ifelse(str_detect(`種屬/屬類`, "羌"), "Muntjac", taxa)) %>%
-  mutate(class = case_when(taxa == "Fish" ~ "Fish",
-                           taxa == "Bird" ~ "Bird",
-                           TRUE ~ "Mammal")) %>%
-  mutate(size = case_when(taxa == "Deer" ~ "Large animals",
-                          taxa == "Cattle" ~ "Large animals",
-                          taxa == "Pig" ~ "Medium animals",
-                          taxa == "Muntjac" ~ "Medium animals",
-                          TRUE ~ "Small animals")) %>%
-  mutate(cutmarks = ifelse(`人為痕跡` == "", "no", "yes"))
+  mutate(category = case_when(str_detect(animal, "deer") ~ "deer",
+                              str_detect(animal, "fish") ~ "fish",
+                              str_detect(animal, "cattle")|str_detect(animal, "buffalo")~ "cattle",
+                              animal == "aves" ~ "bird", TRUE ~ animal)) %>%
+  mutate(class = case_when(str_detect(taxa, "muntjac")|str_detect(taxa, "ammal")|
+                           str_detect(taxa, "erv")|str_detect(taxa, "Sus")|
+                           str_detect(taxa, "Rattus")|str_detect(taxa, "Rusa")|
+                           str_detect(taxa, "Bos")|str_detect(taxa, "Bubalus")~ "mammal",
+                           str_detect(category, "fish") ~ "fish",
+                           str_detect(category, "bird") ~ "bird", TRUE ~ "reptile")) %>%
+  mutate(`部位/左右` = case_when(`部位/左右` == "Ｌ" ~ "L", `部位/左右` == "Ｒ" ~ "R", TRUE ~ `部位/左右`)) %>%
+  mutate(category = fct_relevel(category, "deer","boar","muntjac","cattle","rat","bird","fish","turtle")) %>%
+  mutate(cutmarks = case_when(str_detect(`人為痕跡`, "切")|str_detect(`人為痕跡`, "削")|
+                              str_detect(`人為痕跡`, "砍")~ "yes", TRUE ~ "no")) %>%
+  mutate(burn = case_when(str_detect(`人為痕跡`, "火")|str_detect(`人為痕跡`, "燒")~ "yes", TRUE ~ "no")) %>%
+  filter(is.na(refitted)) %>% # for NISP
+  filter(!`部位/名稱` %in% c("角","犄角","角?")) %>%  #not associated with diet
+  filter(!`部位/名稱`== "角基部"|!is.na(`部位/左右`)) # associated with cranial parts
 
-# counts
+# taxa counts
 fauna_combined_taxa <-
   fauna_combined_context %>% count(taxa) %>%
   mutate(percentage = n/sum(n))
@@ -77,10 +76,8 @@ fauna_combined_taxa <-
 # calculate MNI
 fauna_combined_MNI <-
   fauna_combined_context %>%
-  mutate(`部位/左右` = case_when(`部位/左右` == "Ｌ" ~ "L",
-                                  `部位/左右` == "Ｒ" ~ "R", TRUE ~ `部位/左右`)) %>%
-  filter(!is.na(`部位/左右`)&!`部位/左右` == "可") %>%
-  count(`部位/左右`, taxa, `部位/名稱`)
+  filter(!is.na(`部位/左右`)) %>%
+  count(`部位/左右`, category, `部位/名稱`)
 
 ################### ubiquity ###################
 # calculate the number of units for each cultural layers
@@ -105,71 +102,91 @@ unit_by_period <-
 # ubiquity of taxa over the 40 units by temporal sequences
 fauna_ubiquity <-
   fauna_combined_context %>%
-  select(Pit, layer, taxa, `重量(g)`, period, size) %>%
-  count(period, Pit, taxa) %>%
-  count(period, taxa) %>%
-  filter(!is.na(period)) %>%
+  select(Pit, layer, category, `重量(g)`, period, taxa) %>%
+  count(period, Pit, category) %>%
+  count(period, category) %>%
+  drop_na(period, category) %>%
   left_join(unit_by_period) %>% # join the unit counts for each period
   mutate(ubiquity = paste(round(n/unit_count *100, 2), "%")) %>%
   select(-n, -unit_count) %>%
   pivot_wider(names_from = period, values_from = ubiquity) %>%
-  mutate(taxa = fct_relevel(taxa, "Deer", "Pig", "Muntjac", "Cattle", "Rodent", "Bird", "Fish")) %>%
-  arrange(taxa)
-  #replace_na(list(`pre-European` = "-", `post-European` = "-", `Chinese` = "-"))
+  arrange(category)
 
 ################### Taxonomic abundance ###################
-# barplot I: classes of vertebrates by period
-fauna_taxa_barplot <-
+# barplot I: classes of vertebrates by period (NISP)
+verte_class_barplot <-
   fauna_combined_context %>%
   drop_na(period, class) %>%
-  mutate(class = factor(class, levels = c("Mammal", "Bird", "Fish"), ordered = TRUE)) %>%
+  group_by(period) %>%
+  mutate(class = factor(class, levels = c("mammal", "bird", "fish", "reptile"), ordered = TRUE)) %>%
   ggplot(aes(x = period, fill = class))+
-  geom_bar(position = position_dodge2(preserve = "single")) +
+  geom_bar(position = "fill", width = 0.7) + #position_dodge2(preserve = "single")
   labs(y = "NISP", x = NULL) +
+  scale_y_continuous(labels = scales::percent) +
   theme_minimal() +
   theme(legend.title=element_blank())
 
-# barplot II: relative abundance of mammals by period
-fauna_mammal_barplot <-
+# barplot II: classes of vertebrates by period (normed NISP across classes)
+verte_class_barplot_normed <-
   fauna_combined_context %>%
-  filter(class == "Mammal") %>%
-  drop_na(period) %>%
-  mutate(taxa = factor(taxa, levels = c("Deer", "Pig", "Muntjac", "Cattle", "Rodent"), ordered = TRUE)) %>%
-  ggplot(aes(x = period, fill = taxa))+
+  count(period, class) %>% #class
+  drop_na(period, class) %>%
+  mutate(NNISP = case_when(str_detect(class, "mammal") ~ n/205,
+                           str_detect(class, "bird") ~ n/130,
+                           str_detect(class, "fish") ~ n/150,
+                           str_detect(class, "reptile") ~ n/200)) %>%
+  mutate(class = factor(class, levels = c("mammal", "bird", "fish", "reptile"), ordered = TRUE)) %>%
+  group_by(period) %>%
+  summarise(total_per_period = sum(NNISP), across()) %>%
+  mutate(`%NNISP` = (NNISP/total_per_period)*100) %>%
+  ggplot(aes(x = period, y = `%NNISP`))+
+  geom_bar(stat = "identity", aes(fill = class), width = 0.7) +
+  labs(y = "%NNISP", x = NULL) +
+  theme_minimal() +
+  theme(legend.title=element_blank())
+
+# barplot III: relative abundance of mammals by period
+library(viridis)
+verte_mammal_barplot <-
+  fauna_combined_context %>%
+  filter(class == "mammal" &!category == "rat") %>%
+  drop_na(period, category) %>% # remove category to get absolute abundance
+  mutate(category = factor(category, levels = c("deer", "boar", "muntjac", "cattle"), ordered = TRUE)) %>%
+  ggplot(aes(x = period, fill = category))+
   geom_bar(position = "fill", width = 0.6) +
-  labs(y = NULL, x = NULL) +
+  labs(y = "NISP", x = NULL) +
   scale_y_continuous(labels = scales::percent) +
   theme_minimal() +
-  guides(fill= guide_legend(title="Mammals"))
+  scale_fill_viridis_d(option="magma", begin = 0.2, end = 0.9,) +
+  guides(fill= guide_legend(title="mammal"))
 
-ggsave(here::here("analysis", "figures", ".png"), h = 3, w =5, units = "in")
+#ggsave(here::here("analysis", "figures", ".png"), h = 3, w =5, units = "in")
 
 ################### Skeletal part ###################
-fauna_exclud <-
+fauna_deer_only <-
   fauna_combined_context %>%
-  filter(taxa %in% c("Deer")) %>%
+  filter(category %in% c("deer") & !is.na(period))
+
+deer_elements <-
+  fauna_deer_only %>%
   filter(!is.na(`部位/名稱`)) %>%
-  distinct(`部位/名稱`)
+  count(`部位/名稱`) #distinct
 
 fauna_deer_portion <-
-  fauna_combined_context %>%
-  filter(taxa %in% c("Deer")) %>%
+  fauna_deer_only %>%
   mutate(portion = case_when(
-    `部位/名稱` %in% c("肩胛骨","肩頰骨","肩胛骨.","胸椎","腰椎","肋骨","肩頰,肋骨","薦骨","胸骨") ~ "mid-meaty\n(body)",
-    `部位/名稱` %in% c("肱骨", "尺骨", "radius", "肱骨humerus", "左肱骨","橈骨", "Humerus", "骺",
-                   "脛骨", "tibia", "脛關節", "髖骨", "股骨", "肢骨") ~ "meaty\n(upper limb)",
-    `部位/名稱` %in% c("掌骨","掌骨或蹠骨","蹠骨","踝骨","腕骨","metatarsal","metacarpal","腕或踝骨","腕骨或踝骨",
-                   "蹠骨(或掌骨)","掌或蹠骨","蹠骨或掌骨","跟骨","astragalus","astragulas","calcanous",
-                   "第1趾骨","第2趾骨","第3趾骨","左第2趾骨","右第2趾骨","carpal附骨？","附骨","趾骨,附骨") ~ "non-meaty\n(lower limb)",
-    `部位/名稱` %in% c("下顎及齒","上或下顎","下顎骨","顱骨","第二頸椎","枕骨"
-                   ) ~ "non-meaty\n(cranial parts)")) #角基部, 犄角, 鹿角, "上下顎齒", "前臼齒","碎齒","齒","臼齒","上顎臼齒"
+    `部位/名稱` %in% c("胸椎","腰椎","頸椎","第二頸椎","脊椎","肋骨","薦骨","胸骨") ~ "mid-meaty\n(body)",
+    `部位/名稱` %in% c("肩胛骨","肱骨","尺骨","橈骨","脛骨","髖骨","股骨","肱或股骨","上肢骨") ~ "meaty\n(upper limb)",
+    `部位/名稱` %in% c("掌骨","掌骨或蹠骨","蹠骨","跗骨","趾骨","腕骨","跟骨","astragalus","第1趾骨","第2趾骨","第3趾骨") ~ "non-meaty\n(lower limb)",
+    `部位/名稱` %in% c("上顎骨","上顎及齒","上顎齒","下顎及齒","下顎骨","下顎齒","臼齒","枕骨","頭骨",
+                       "顱骨","齒","角基部") ~ "non-meaty\n(cranial parts)"))
 
 weight_head <-
 fauna_deer_portion %>%
   mutate(`重量(g)` = as.numeric(`重量(g)`)) %>%
   filter(portion == "non-meaty\n(cranial parts)") %>%
   group_by(period) %>%
-  summarise(weight = sum(`重量(g)`)) %>%
+  summarise(weight = sum(`重量(g)`, na.rm = T)) %>%
   filter(!is.na(period)) %>%
   ggplot(aes(x= period, y=weight,  width=0.5)) +
   geom_bar(stat="identity")+
@@ -178,26 +195,70 @@ fauna_deer_portion %>%
 
 deer_portion_plot <-
   fauna_deer_portion %>%
-  select(period, portion, taxa) %>%
-  count(period, portion, taxa) %>%
+  select(period, portion, animal) %>%
   drop_na() %>%
+  count(period, portion) %>%
   mutate(period = factor(period, levels = c("CL1","CL2","CL3","CL4","CL5","CL6"))) %>% #ordered = TRUE
-  ggplot(aes(period, n, fill = portion)) +
-  geom_bar(stat = "identity", position = "fill", width = 0.6) +
+  ggplot(aes(period, n, fill = portion)) + #fill = portion
+  geom_bar(stat = "identity",
+           position = position_dodge2(preserve = "single"), widtg = 0.6) + #stat = "identity", position = "fill"
   #facet_wrap(~taxa) +
   labs(x = NULL, y = NULL) +
   guides(fill= guide_legend(title="portion"))+
-  scale_fill_viridis_d(labels=c('upper limb', 'body', 'cranial parts','lower limb'))+
+  scale_fill_viridis_d(labels=c('upper limb', 'body', 'head','lower limb'))+
   #scale_fill_discrete(breaks=c("body\n(mid-meaty)", "upper limb\n(meaty)", "lower limb\n(meaty)","cranial elements(none-meaty)")) +
   theme_minimal()
 
-ggsave(here::here("analysis", "figures", "talk-fauna-2.png"), h = 4, w =4, units = "in")
+#ggsave(here::here("analysis", "figures", "talk-fauna-2.png"), h = 4, w =4, units = "in")
 
 library(cowplot)
 plot_grid(fauna_mammal_barplot, deer_portion_plot,
           labels = c('A', 'B'), rel_widths = c(1.3, 1), label_size = 12)
 
-ggsave(here::here("analysis", "figures", "talk-fauna.png"), h = 4, w =9, units = "in")
+#ggsave(here::here("analysis", "figures", "talk-fauna.png"), h = 4, w =9, units = "in")
+
+################### fragmentation #######################
+# calculate MNE
+deer_MNE <-
+  fauna_deer_only  %>%
+  filter(!is.na(`部位/左右`)&is.na(overlap)) %>% #remove overlapped fragments
+  count(period,`部位/左右`,`部位/名稱`,`部位/位置`) %>%
+  group_by(period) %>%
+  summarise(MNE = sum(n), across())
+
+deer_NISP <-
+  fauna_deer_only %>%
+  count(period) %>%
+  rename(NISP = n)
+
+frag_index <-
+  left_join(deer_MNE, deer_NISP) %>%
+  mutate(index = MNE/NISP)
+
+# broken bones(all taxa)
+fauna_broken <-
+  kwl_fauna_broken %>%
+  mutate(Pit = paste(context,pit, sep = "")) %>%
+  filter(Pit %in% sample_p$the_sq) %>%
+  filter(!layer == "00") %>% #remove sc
+  mutate(area = ifelse(is.na(section), "A", section)) %>%
+  mutate(`重量(g)` = as.numeric(`重量(g)`)) %>%
+  left_join(kwl_chro_tidy_6) %>%
+         #   by = c("Pit" = "Pit", "layer" = "layer", "area" = "area")) %>%
+  group_by(period) %>%
+  summarise(weight = sum(`重量(g)`)) %>%
+  filter(!is.na(period))
+
+fauna_broken_plot <-
+  fauna_broken %>%
+  mutate(period = factor(period, levels = c("CL1","CL2","CL3","CL4","CL5","CL6"), order = T)) %>%
+  ggplot(aes(x= period, y=weight,  width=0.5)) +
+  geom_bar(stat="identity")+
+  labs(x= NULL, y = "weight(g)") +
+  #scale_y_continuous(breaks = seq(0, 90, by = 10)) +
+  theme_minimal()
+
+#ggsave(here::here("analysis", "figures", "talk-fauna-6.png"), h = 2, w =4, units = "in")
 
 ################### Cutmarks ###################
 # count cutmarks throughout all taxa
@@ -211,16 +272,17 @@ fauna_total_cut <-
 # cutmarks on deer bones
 fauna_deer_joints <-
   fauna_deer_portion  %>%
-  mutate(joint = case_when(`部位/名稱` %in% c( "肩胛骨", "肩頰骨", "肩胛骨.") ~ "shoulder",
-                             `部位/名稱` %in% c("橈骨", "尺骨", "radius", "肱骨humerus", "左肱骨","肱骨", "Humerus", "骺") ~ "elbow",
-                             `部位/名稱` %in% c("掌骨", "腕骨", "metacarpal", "carpal附骨？", "附骨", "趾骨,附骨") ~ "wrist", #"掌骨或蹠骨"
-                             `部位/名稱` %in% c("髖骨", "股骨", "薦骨") ~ "hip",
-                             `部位/名稱` %in% c("脛骨", "tibia", "脛關節") ~ "knee",
-                             `部位/名稱` %in% c("蹠骨", "跟骨", "踝骨", "astragalus","astragulas", "metatarsal","calcanous") ~ "ankle")) #"蹠骨(或掌骨)"
+  mutate(joint = case_when(`部位/名稱` %in% c( "肩胛骨") ~ "shoulder",
+                             `部位/名稱` %in% c("橈骨","尺骨","肱骨") ~ "elbow",
+                             `部位/名稱` %in% c("掌骨","腕骨") ~ "wrist", #"掌骨或蹠骨"
+                             `部位/名稱` %in% c("髖骨","股骨","薦骨") ~ "hip",
+                             `部位/名稱` %in% c("脛骨") ~ "knee",
+                             `部位/名稱` %in% c("蹠骨", "跟骨", "附骨", "astragalus") ~ "ankle")) #"蹠骨(或掌骨)"
 
 # deer joints with cutmarks
 fauna_deer_cut <-
   fauna_deer_joints %>%
+  filter(cutmarks == "yes") %>%
   group_by(period, joint, cutmarks) %>%
   count() %>%
   rename(`NISP with cutmarks` = n) %>%
@@ -233,21 +295,17 @@ fauna_deer_NNISP <-
   count() %>%
   left_join(fauna_deer_cut) %>%
   rename(NISP = n) %>%
-  select(-cutmarks) %>%
-  drop_na(period, joint) %>%
-  #filter(!period =="Chinese") %>%
-  mutate_all(funs(ifelse(is.na(.), 0, .))) %>%
-  mutate(proportion = round(`NISP with cutmarks`/NISP, 2),
-         NNISP = NISP/2) %>%
+  drop_na() %>%
+  #mutate_all(funs(ifelse(is.na(.), 0, .))) %>%
+  mutate(proportion = round(`NISP with cutmarks`/NISP, 2), NNISP = NISP/2) %>%
   group_by(period) %>%
-  mutate(`%NNISP` = round(NNISP/max(NNISP), 2)) %>%
+  mutate(`%NNISP` = round(NNISP/sum(NNISP), 2)) %>%
   mutate(cut_percent = `%NNISP` * proportion)
 
 # plot
 deer_cut <-
-  ggplot(fauna_deer_NNISP,
-         aes(x = period, y = cut_percent,
-             fill = factor(joint, levels = (c("shoulder","elbow","wrist","hip","knee","ankle"))))) +
+  ggplot(fauna_deer_NNISP, aes(x = period, y = proportion,
+         fill = factor(joint, levels = (c("shoulder","elbow","wrist","hip","knee","ankle"))))) +
   geom_bar(stat = "identity", position = position_dodge2(preserve = "single")) +
   scale_color_discrete(breaks=c("CL1", "CL2", "CL3", "CL4", "CL5", "CL6")) +
   labs(x = NULL, y = "joints with cutmarks (%NNISP)") +
@@ -262,59 +320,48 @@ ggsave(here::here("analysis", "figures", "talk-fauna-3.png"), h = 4, w =4.5, uni
 res <- t.test(cut_percent ~ period, data = fauna_deer_NNISP)
 
 ################### Cutmarks related to skinning ###################
-# skinning portions
-fauna_deer_skin <-
+# Skeletal elements related to skinning
+deerskin_portion <-
   fauna_combined_context %>%
   mutate(skinning_cut = case_when(str_detect(.$`部位/名稱`, "掌骨")|
-                               str_detect(.$`部位/名稱`, "蹠骨")|
-                               str_detect(.$`部位/名稱`, "meta")|
-                               str_detect(.$`部位/名稱`, "tarsal") ~ "metacarpal/\ntarsal",
-                             str_detect(.$`部位/名稱`, "趾骨") ~ "phalanges",
-                             str_detect(.$`新標本名`, "跟骨")|
-                               str_detect(.$`新標本名`, "cubon")|
-                               str_detect(.$`新標本名`, "calcanous") ~ "calcaneus/\ncubonavicular",
-                             str_detect(.$`部位/名稱`, "脛骨")|
-                             str_detect(.$`部位/名稱`, "tibia") ~ "tibia")) %>%
-           filter(!`人為痕跡` %in% c("火燒"))
+                                  str_detect(.$`部位/名稱`, "蹠骨") ~ "metapodials",
+                                  str_detect(.$`部位/名稱`, "腕骨")|
+                                  str_detect(.$`部位/名稱`, "跗骨") ~ "carpal/tarsal",
+                                  str_detect(.$`部位/名稱`, "趾骨") ~ "phalanges",
+                                  str_detect(.$`部位/名稱`, "頸椎")|
+                                  str_detect(.$`部位/名稱`, "枕骨")|
+                                  str_detect(.$`部位/名稱`, "薦骨") ~ "neck/tail regions",
+                                  TRUE ~ "others"))
+  #filter(!`人為痕跡` %in% c("火燒"))
 
-c("掌骨","掌骨或蹠骨","蹠骨","踝骨","腕骨","metatarsal","metacarpal","腕或踝骨","腕骨或踝骨",
-  "蹠骨(或掌骨)","掌或蹠骨","蹠骨或掌骨","跟骨","astragalus","astragulas","calcanous",
-  "第1趾骨","第2趾骨","第3趾骨","左第2趾骨","右第2趾骨","carpal附骨？","附骨","趾骨,附骨")
-
-
-# skinning bones with cutmarks
-fauna_deer_skin_cut <-
-  fauna_deer_skin %>%
-  group_by(period, skinning_cut, cutmarks) %>%
-  count() %>%
-  rename(`NISP with cutmarks` = n) %>%
-  drop_na()
-
-# deer bones related to skinning by portion in total
-fauna_deer_skin_NNISP <-
-  fauna_deer_skin %>%
+# NISP for skeletal elements related to skinning
+deerskin_portion_NISP <-
+  deerskin_portion %>%
+  filter(!skinning_cut == "others") %>%
   group_by(period, skinning_cut) %>%
   count() %>%
-  left_join(fauna_deer_skin_cut) %>%
-  rename(NISP = n) %>%
-  select(-cutmarks) %>%
-  drop_na(period) %>%
-  #filter(!period =="Chinese") %>%
-  mutate_all(funs(ifelse(is.na(.), 0, .))) %>%
-  mutate(proportion = round(`NISP with cutmarks`/NISP, 2),
-         NNISP = NISP/2) %>%
-  group_by(period) %>%
-  mutate(`%NNISP` = round(NNISP/max(NNISP), 2)) %>%
-  mutate(cut_percent = `%NNISP` * proportion) # filter(portion %in% c("tibia", "metacarpal/\ntarsal"))
+  rename(NISP_skin_bone = n) %>%
+  drop_na()
+
+# NISP with circular and straight cutmarks
+deerskin_portion_NISP_cut <-
+  deerskin_portion %>%
+  filter(str_detect(`人為痕跡`, "切")) %>%
+  group_by(period, skinning_cut) %>%
+  count() %>%
+  left_join(deerskin_portion_NISP) %>%
+  drop_na() %>%
+  #mutate_all(funs(ifelse(is.na(.), 0, .))) %>%
+  mutate(proportion = round(n/NISP_skin_bone, 2))
 
 # plot
 deer_cut_skinning <-
-  ggplot(fauna_deer_skin_NNISP, aes(x = period, y = cut_percent, fill = skinning_cut)) +
+  deerskin_portion_NISP_cut %>%
+  ggplot(aes(x = period, y = proportion, fill = skinning_cut)) +
   scale_color_discrete(breaks=c("CL1", "CL2", "CL3", "CL4", "CL5", "CL6")) +
   geom_bar(stat = "identity", position = position_dodge2(preserve = "single")) +
-  labs(x = NULL, y = "具有切痕的骨頭百分比 (%)") +
-  guides(fill= guide_legend(title="剝皮相關骨骼"))+
-  scale_fill_viridis_d(labels=c('跟骨calcaneus', '掌/蹠骨\nmetacarpal/tarsal', '指骨phalanges','脛骨tibia')) +
+  labs(x = NULL, y = "bones with skinning cutmarks (%)") +
+  scale_fill_viridis_d(labels=c('carpal/\ntarsal', 'metapodials', 'phalanges','neck/\ntail regions')) +
   theme_minimal()
 
 ggsave(here::here("analysis", "figures", "talk-fauna-5.png"), h = 3, w =5, units = "in")
@@ -328,27 +375,3 @@ ggsave(here::here("analysis", "figures", "deer-cut.png"), h = 4, w =8, units = "
 # t-test
 res <- t.test(cut_percent ~ period, data = fauna_deer_skin_NNISP)
 
-#broken bones
-fauna_broken <-
-  kwl_fauna_broken %>%
-  mutate(Pit = paste(編號別, 空間號, sep = "")) %>%
-  filter(Pit %in% sample_p$the_sq) %>%
-  filter(!層位 == "00") %>% #remove sc
-  mutate(area = ifelse(is.na(區位), "A", 區位)) %>%
-  mutate(`重量(g)` = as.numeric(`重量(g)`)) %>%
-  left_join(kwl_chro_tidy_6,
-            by = c("Pit" = "Pit", "層位" = "layer", "area" = "area")) %>%
-  group_by(period) %>%
-  summarise(weight = sum(`重量(g)`)) %>%
-  filter(!is.na(period))
-
-fauna_broken_plot <-
-  fauna_broken %>%
-  mutate(period = factor(period, levels = c("CL1","CL2","CL3","CL4","CL5","CL6"), order = T)) %>%
-  ggplot(aes(x= period, y=weight,  width=0.5)) +
-  geom_bar(stat="identity")+
-  labs(x= NULL, y = NULL, title= "碎骨重量(g)") +
-  #scale_y_continuous(breaks = seq(0, 90, by = 10)) +
-  theme_minimal()
-
-ggsave(here::here("analysis", "figures", "talk-fauna-6.png"), h = 2, w =4, units = "in")
