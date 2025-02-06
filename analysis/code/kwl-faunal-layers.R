@@ -322,7 +322,7 @@ res <- t.test(cut_percent ~ period, data = fauna_deer_NNISP)
 ################### Cutmarks related to skinning ###################
 # Skeletal elements related to skinning
 deerskin_portion <-
-  fauna_combined_context %>%
+  fauna_deer_only %>%
   mutate(skinning_cut = case_when(str_detect(.$`部位/名稱`, "掌骨")|
                                   str_detect(.$`部位/名稱`, "蹠骨") ~ "metapodials",
                                   str_detect(.$`部位/名稱`, "腕骨")|
@@ -343,6 +343,16 @@ deerskin_portion_NISP <-
   rename(NISP_skin_bone = n) %>%
   drop_na()
 
+# plot bones associated with hide removal processes
+deer_skinning_related <-
+  deerskin_portion_NISP %>%
+  ggplot(aes(x = period, y = NISP_skin_bone , fill = skinning_cut)) +
+  scale_color_discrete(breaks=c("CL1", "CL2", "CL3", "CL4", "CL5", "CL6")) +
+  geom_bar(stat = "identity", position = position_dodge2(preserve = "single")) +
+  labs(x = NULL, y = "NISP") +
+  scale_fill_viridis_d(labels=c('carpal/\ntarsal', 'metapodials', 'phalanges','neck/\ntail regions')) +
+  theme_minimal()
+
 # NISP with circular and straight cutmarks
 deerskin_portion_NISP_cut <-
   deerskin_portion %>%
@@ -351,16 +361,15 @@ deerskin_portion_NISP_cut <-
   count() %>%
   left_join(deerskin_portion_NISP) %>%
   drop_na() %>%
-  #mutate_all(funs(ifelse(is.na(.), 0, .))) %>%
-  mutate(proportion = round(n/NISP_skin_bone, 2))
+  mutate(proportion = n/NISP_skin_bone)
 
-# plot
+# plot the proportion of skinning bones with cutmarks
 deer_cut_skinning <-
   deerskin_portion_NISP_cut %>%
-  ggplot(aes(x = period, y = proportion, fill = skinning_cut)) +
+  ggplot(aes(x = period, y = proportion , fill = skinning_cut)) +
   scale_color_discrete(breaks=c("CL1", "CL2", "CL3", "CL4", "CL5", "CL6")) +
   geom_bar(stat = "identity", position = position_dodge2(preserve = "single")) +
-  labs(x = NULL, y = "bones with skinning cutmarks (%)") +
+  labs(x = NULL, y = "%NISP") +
   scale_fill_viridis_d(labels=c('carpal/\ntarsal', 'metapodials', 'phalanges','neck/\ntail regions')) +
   theme_minimal()
 
@@ -375,3 +384,29 @@ ggsave(here::here("analysis", "figures", "deer-cut.png"), h = 4, w =8, units = "
 # t-test
 res <- t.test(cut_percent ~ period, data = fauna_deer_skin_NNISP)
 
+###############modification################
+# burn bones
+burnbone_deer <-
+  fauna_deer_only %>%
+  filter(str_detect(`人為痕跡`, "燒")) %>%
+  count(period) %>%
+  rename(burn = n)
+
+# bones with cutmarks
+cutmarks_deer <-
+  fauna_deer_only %>%
+  filter(cutmarks == "yes") %>%
+  count(period) %>%
+  rename(cutmarks = n)
+
+# NISP per period
+fauna_deer_only_NISP <-
+  fauna_deer_only %>%
+  count(period) %>%
+  rename(NISP = n)
+
+# join
+deer_modify<-
+  fauna_deer_only_NISP %>%
+  left_join(cutmarks_deer) %>%
+  left_join(burnbone_deer)
