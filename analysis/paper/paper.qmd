@@ -83,25 +83,179 @@ To construct a reliable fine-grained chronological sequence, archaeological depo
 
 Only the faunal assemblages identified to at least the family level were considered in this study for consistent comparison across time sequences. Deer antlers that were not attached to cranial bones were excluded since they might not directly related to dietary practices. To obtain generalized pattern of resource use, measures of ubiquity and taxonomic abundance were applied. Ubiquity measures the frequency of specific taxa through their presence or absence in particular depositional contexts, suggesting the regularity of animal consumption [@Mckechnie2016; @Vanderwarker2010]. Here ubiquity values are expressed as the percentage of units with a given taxon to the total number of units per cultural layers. Taxonomic abundance was quantified using the Number of Identified Specimens (NISP) method [@Grayson2004; @Lyman2012]. Different from the minimum number of individuals (MNI) that determines the actual numbers of animals recovered from remains, NISP offers a broad overview of dietary practices by considering all fragmented bone assemblages. Despite the criticism of overestimation the number of animals, NISP captures better variation in species abundance on a site with less impacts from sample size, and therefore is used throughout this study [@Grayson1984; @Lyman2008]. For comparison of identified taxa across classes, the normalized NISP were used to avoid potential biases in identification due to differences in the preservation or recovery of skeletal elements [@Grayson2004]. The normalized NISP is calculated by dividing NISP by the average number of skeletal elements of that given taxa. 
 
-Given that deerskin was a primary commodity in local regional exchange since the 14th century and was in high demand during the Dutch colonization period [@Cheng2017], the skeletal compositions, fragmentation, and butchery patterns of deer bones were examined. The distribution of body portions and butcher patterns can shed light on how indigenous people utilize deer in response to economic demands during the foreign presence. The proportion of deer skeletal elements was quantified using NISP and classified into groups based on the meat yield: meaty elements (e.g., upper limb), mid-meaty elements (e.g., body parts), and non-meaty elements (e.g., skull bones and lower limb) [@Madrigal2004]. While lower limbs and skull bones have minimal meat, they are often valued in many cultures for marrow and soft tissues, such as tongue and brain. Thus, non-meaty elements were considered as secondary source of nutrition in the interpretation. Similarly, the degree of fragmentation and the weight of broken unidentified bones could also imply the extraction of marrow or grease. For butcher patterns, cut marks on major limb joints, including the shoulder, elbow, wrist, hip, knee, and ankle [@Lyman2005], were identified and quantified for a comparison between different temporal sequences. In addition, modifications such as cut marks, fracturing, and burning were examined, especially the cut marks associated with the skinning process. Skinning processes can be identified by the encircling and straight marks left on the lower limb, such as metapodials, which result from the series of cuts typically made to acquire intact animal hides [@Costamagno2019; @Isaakidou2007].
+Given that deerskin was a primary commodity in local regional exchange since the 14th century and was in high demand during the Dutch colonization period [@Cheng2017], the skeletal compositions, fragmentation, and butchery patterns of deer bones were examined. The distribution of body portions and butcher patterns can shed light on how indigenous people utilize deer in response to economic demands during the foreign presence. The proportion of deer skeletal elements was quantified using NISP and classified into groups based on the meat yield: meaty elements (e.g., upper limb), mid-meaty elements (e.g., body parts), and non-meaty elements (e.g., skull bones and lower limb) [@Madrigal2004]. While lower limbs and skull bones have minimal meat, they are often valued in many cultures for marrow and soft tissues, such as tongue and brain. Thus, non-meaty elements were considered as secondary source of nutrition in the interpretation. Similarly, the degree of fragmentation and the weight of broken unidentified bones could also imply the extraction of marrow or grease. The degree of fragmentation is calculated by dividing Minimal Number of Elements (MNE) by NISP. For butcher patterns, cut marks on major limb joints, including the shoulder, elbow, wrist, hip, knee, and ankle [@Lyman2005], were identified and quantified for a comparison between different temporal sequences. In addition, modifications such as cut marks, fracturing, and burning were examined, especially the cut marks associated with the skinning process. Skinning processes can be identified by the encircling and straight marks left on the lower limb, such as metapodials, which result from the series of cuts typically made to acquire intact animal hides [@Costamagno2019; @Isaakidou2007].
 
 # Results
 
+```{r setup, include= FALSE}
+library(tidyverse)
+library(knitr)
+```
 
 ```{r}
 #| label: get-data
-#| eval: false
-# Note the path that we need to use to access our data files when rendering this document
-my_data <- read.csv(here::here('analysis/data/raw_data/my_csv_file.csv'))
+#| echo: false
+#| cache.extra: tools::md5sum('KWL_faunal_P.xlsx')
+
+# read data
+kwl_fauna <- readxl::read_excel(here::here("analysis","data","raw_data","KWL_faunal_P.xlsx"), sheet = 1,
+                                col_types = "text")
+
+kwl_fauna_HM <- readxl::read_excel(here::here("analysis","data","raw_data","KWL_faunal_HM.xlsx"), sheet = 1,
+                                   col_types = "text")
+
+kwl_fauna_broken <- readxl::read_excel(here::here("analysis","data","raw_data","broken_fauna.xlsx"), sheet = 1,
+                                   col_types = "text")
+
+sample_p <- readr::read_csv(here::here("analysis", "data", "raw_data", "kwl-list-of-sampling-squares.csv"))
+
+kwl_chro_6 <- readxl::read_excel(here::here("analysis", "data", "raw_data", "KWL_chronology.xlsx"), sheet = 5)
+
+# tidy chronological data
+kwl_chro_tidy_6 <-
+  kwl_chro_6 %>%
+  mutate(area = str_sub(Pit, 5, 7), Pit = str_sub(Pit, 1, 4)) %>%
+  mutate(area = ifelse(area == "", "ABCD", area)) %>%
+  mutate(area = sapply(strsplit(area, ""), paste, collapse= ",")) %>%
+  separate_rows(area) %>%
+  pivot_longer(cols = starts_with("L"), names_to = "layer", values_to = "period") %>%
+  mutate(layer = str_sub(layer, 2, 3)) %>%
+  mutate(layer = ifelse(nchar(layer) == 1, paste0("0", layer), layer))
+
+# combine faunal data of cultural layers and temporal sequences
+fauna_sam <-
+  kwl_fauna %>%
+  mutate(Pit = paste(context, pit, sep = "")) %>%
+  filter(Pit %in% sample_p$the_sq) %>%
+  filter(componant == "上文化層" &!layer == "00") %>% #remove sc
+  #filter(!str_detect(`總報告類別`, "[[:punct:]]+|[0-9]+")) %>%
+  mutate(area = ifelse(is.na(area), "C", area)) %>% # assign an area to the blanks, which won't change the results
+  left_join(kwl_chro_tidy_6, by = c("Pit" = "Pit", "layer" = "layer", "area" = "area"))
+
+# combine faunal data of middens and temporal sequences
+fauna_H_sam <-
+  kwl_fauna_HM %>%
+  select(-`空間號`, -`層   位`) %>%
+  mutate(Pit = paste("P", pit, sep = "")) %>%
+  filter(Pit %in% sample_p$the_sq) %>%
+  filter(componant == "上文化層") %>%
+  left_join(kwl_chro_tidy_6, by = c("Pit" = "Pit", "layer" = "layer", "area" = "area"))
+
+fauna_combined_context <-
+  rbind(fauna_sam, fauna_H_sam) %>% # combine the two datasets
+  filter(!`部位/名稱` %in% c("角","犄角","角?")) %>%  #not associated with diet
+  filter(!`部位/名稱`== "角基部"|!is.na(`部位/左右`)) %>% # associated with cranial parts
+  mutate(`重量(g)` = as.numeric(`重量(g)`)) %>%
+  group_by(taxa) %>%
+  mutate(`Weight (g)` = sum(`重量(g)`, na.rm = T)) %>%
+  ungroup() %>%
+  mutate(period = factor(period, levels = c("CL1","CL2","CL3","CL4","CL5","CL6"), order = T)) %>%
+  mutate(category = case_when(str_detect(animal, "e deer") ~ "deer", str_detect(animal, "fish") ~ "fish",
+                              str_detect(animal, "cattle")|str_detect(animal, "buffalo")~ "cattle",
+                              animal == "aves" ~ "bird", TRUE ~ animal)) %>%
+  mutate(class = case_when(str_detect(taxa, "muntjac")|str_detect(taxa, "ammal")|str_detect(taxa, "erv")|
+                           str_detect(taxa, "Sus")|str_detect(taxa, "Rattus")|str_detect(taxa, "Rusa")|
+                           str_detect(taxa, "Bos")|str_detect(taxa, "Bubalus")~ "mammal",
+                           str_detect(category, "fish") ~ "fish", str_detect(category, "bird") ~ "bird",
+                           TRUE ~ "reptile")) %>%
+  mutate(`部位/左右` = case_when(`部位/左右` == "Ｌ" ~ "L", `部位/左右` == "Ｒ" ~ "R", TRUE ~ `部位/左右`)) %>%
+  mutate(category = fct_relevel(category, "deer","boar","muntjac","cattle","rat","bird","fish","turtle")) %>%
+  mutate(modify = case_when(str_detect(`人為痕跡`, "切")|str_detect(`人為痕跡`, "削")|
+                            str_detect(`人為痕跡`, "砍")~ "cutmarks",
+                            str_detect(`人為痕跡`, "火")|str_detect(`人為痕跡`, "燒")~ "burn", TRUE ~ "no")) %>%
+  filter(is.na(refitted)) # for NISP
 ```
 
 ```{r}
-#| label: fig-demo-plot
-#| fig-cap: "A plot of random numbers"
-plot(rnorm(10))
+#| label: tbl-counts
+#| echo: false
+#| tbl-cap: "Taxa, Number of Identified Specimens (NISP), and weight of faunal remains from the sampled area at Kiwulan."
+#| tbl-colwidths: [40,25,15,20]
+#| tbl-cap-location: bottom
+# taxa counts
+fauna_combined_taxa <-
+  fauna_combined_context %>%
+  count(taxa, `Weight (g)`) %>%
+  mutate(taxa = str_replace(taxa, "cervidae", "cervid")) %>%
+  mutate(taxa = case_when(str_detect(taxa, "mm") ~ paste("Unidentified", tolower(taxa), sep =" "),
+                          TRUE ~ taxa)) %>%
+  mutate(`Common name` = case_when(str_detect(taxa, "Cer") ~ "Sika deer", str_detect(taxa, "Bub") ~ 
+                                   "Water buffalo", str_detect(taxa, "Rus") ~ "Sambar deer",   
+                                   str_detect(taxa, "Ree") ~ "Muntjac", str_detect(taxa, "Sus") ~ "Boar", 
+                                   str_detect(taxa, "Bos") ~ "Yellow cattle", str_detect(taxa, "Rat") ~ 
+                                   "Rat", str_detect(taxa, "Pli") ~ "Catfish", str_detect(taxa, "Act") ~ 
+                                   "Ray-finned fish", str_detect(taxa, "Tes") ~ "Turtle",
+                                   str_detect(taxa, "cervid") ~ "Deer family")) %>%
+  mutate(group = case_when(str_detect(`Common name`, "deer") ~ 1, str_detect(`Common name`, "Deer") ~ 2,
+                           str_detect(taxa, "Sus") ~ 3, str_detect(taxa, "Bub")|str_detect(taxa, "Bos") ~ 4,
+                           str_detect(taxa, "munt") ~ 5, str_detect(taxa, "Rat") ~ 6, 
+                           str_detect(`Common name`, "fish") ~ 7, str_detect(taxa, "Tes") ~ 8,
+                           str_detect(taxa, "Ave") ~ 9, str_detect(taxa, "large m") ~ 10,
+                           str_detect(taxa, "medium m") ~ 11, TRUE ~ 12)) %>%
+  group_by(group) %>%
+  arrange(desc(`Weight (g)`), .by_group = TRUE) %>%
+  ungroup () %>%
+  rename(Taxon = taxa, NISP = n) %>%
+  select(Taxon, `Common name`,  NISP, `Weight (g)`) %>%
+  bind_rows(summarise(., across(where(is.numeric), sum), across(where(is.character), ~"Total"))) %>% 
+  mutate(`Common name`= ifelse(is.na(`Common name`)|`Common name` == "Total", "-", `Common name`))
+
+total_NISP <- fauna_combined_taxa %>% select(NISP) %>% tail(1) #rev(fauna_combined_taxa$NISP)[1]
+unident <- fauna_combined_taxa %>% filter(str_detect(Taxon, "Uni")) %>% summarise(sum(NISP))
+deer_NISP <- fauna_combined_taxa %>% 
+  filter(str_detect(`Common name`, "eer")|str_detect(Taxon, "Ree")) %>% summarise(sum(NISP))
+deer_NISP_per <- round(deer_NISP/(total_NISP-unident), 1)*100
+
+
+library(kableExtra)
+knitr::kable(fauna_combined_taxa, align = "l") 
 ```
 
-@fig-demo-plot shows how we can have a caption and cross-reference for a plot. Note that figure label and cross-references must both be prefixed with `fig-`
+The NISP of faunal assemblages from Kiwulan analyzed in this study is `r total_NISP`, where deer family is the majority that accounts for about `r deer_NISP_per`% of the identified bones, followed by boar and cattle as the second and third source based on NISP (@tbl-counts). Within the bones from deer family, sika deer's bone is the most common one, with a few bones from muntjact and a specimen indicating a possible affiliation with sambar deer. Although sika deer was the major animal source at the site, variations could be observed between different cultural layers across 600 years. To examine and compare general patterns of animal use in terms of their economic values over time, deer family were separated into two categories, deer (sika deer, sambar deer, and large deer) and muntjac, while water buffalo and yellow cattle (NISP = 1) were combined into the cattle category. 
+
+
+```{r}
+#| label: ubiquity
+#| echo: false
+#| tbl-cap: "Ubiquity of faunal categories over the 40 units"
+#| tbl-colwidths: [60,40]
+# calculate the number of units for each cultural layers
+kwl_unit_per_period <-
+  kwl_chro_6 %>%
+  mutate(all = pmap_chr(select(., -Pit, -Grid), ~toString(unique(na.omit(c(...)))))) %>%  # unite and remove duplicates
+  mutate(unit = str_extract(Pit, "[A-Z]+[0-9]{3}")) %>%
+  distinct(unit, .keep_all = TRUE) %>%
+  mutate(CL1 = ifelse(str_detect(all, "CL1"), unit, NA)) %>%
+  mutate(CL2 = ifelse(str_detect(all, "CL2"), unit, NA)) %>%
+  mutate(CL3 = ifelse(str_detect(all, "CL3"), unit, NA)) %>%
+  mutate(CL4 = ifelse(str_detect(all, "CL4"), unit, NA)) %>%
+  mutate(CL5 = ifelse(str_detect(all, "CL5"), unit, NA)) %>%
+  mutate(CL6 = ifelse(str_detect(all, "CL6"), unit, NA))
+
+# count the units by cultural layers for later join
+unit_by_period <-
+  data.frame(unit_count = colSums(!is.na(kwl_unit_per_period))) %>%
+  slice_tail(n = 6) %>%
+  tibble::rownames_to_column("period")
+
+# ubiquity of taxa from the 40 units by temporal sequences
+fauna_ubiquity <-
+  fauna_combined_context %>%
+  select(Pit, layer, category, `重量(g)`, period, taxa) %>%
+  count(period, Pit, category) %>%
+  count(period, category) %>%
+  drop_na(period, category) %>%
+  left_join(unit_by_period) %>% # join the unit counts for each period
+  mutate(ubiquity = paste(round(n/unit_count *100, 2), "%")) %>%
+  select(-n, -unit_count) %>%
+  pivot_wider(names_from = period, values_from = ubiquity) %>%
+  mutate(across(CL1:CL6, ~replace_na(.x, "-"))) %>% 
+  arrange(category)
+
+knitr::kable(fauna_ubiquity)
+```
+
+@ubiquity shows how we can have a caption and cross-reference for a plot. Note that figure label and cross-references must both be prefixed with `fig-`
 
 ```{r}
 #| label: demo-inline-code
