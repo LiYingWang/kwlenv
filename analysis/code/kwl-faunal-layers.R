@@ -46,32 +46,54 @@ fauna_H_sam <-
 # combine and tidy data from midden and cultural layers
 fauna_combined_context <-
   rbind(fauna_sam, fauna_H_sam) %>% # combine the two datasets
+  filter(!`部位/名稱` %in% c("角","犄角","角?")) %>%  #not associated with diet
+  filter(!`部位/名稱`== "角基部"|!is.na(`部位/左右`)) %>% # associated with cranial parts
   mutate(`重量(g)` = as.numeric(`重量(g)`)) %>%
-  mutate(`種屬/屬類` = ifelse(is.na(`種屬/屬類`), "none", `種屬/屬類`)) %>%
+  group_by(taxa) %>%
+  mutate(`Weight (g)` = sum(`重量(g)`, na.rm = T)) %>%
+  ungroup() %>%
   mutate(period = factor(period, levels = c("CL1","CL2","CL3","CL4","CL5","CL6"), order = T)) %>%
-  mutate(category = case_when(str_detect(animal, "deer") ~ "deer",
-                              str_detect(animal, "fish") ~ "fish",
+  mutate(category = case_when(str_detect(animal, "e deer") ~ "deer", str_detect(animal, "fish") ~ "fish",
                               str_detect(animal, "cattle")|str_detect(animal, "buffalo")~ "cattle",
                               animal == "aves" ~ "bird", TRUE ~ animal)) %>%
-  mutate(class = case_when(str_detect(taxa, "muntjac")|str_detect(taxa, "ammal")|
-                           str_detect(taxa, "erv")|str_detect(taxa, "Sus")|
-                           str_detect(taxa, "Rattus")|str_detect(taxa, "Rusa")|
+  mutate(class = case_when(str_detect(taxa, "muntjac")|str_detect(taxa, "ammal")|str_detect(taxa, "erv")|
+                           str_detect(taxa, "Sus")|str_detect(taxa, "Rattus")|str_detect(taxa, "Rusa")|
                            str_detect(taxa, "Bos")|str_detect(taxa, "Bubalus")~ "mammal",
-                           str_detect(category, "fish") ~ "fish",
-                           str_detect(category, "bird") ~ "bird", TRUE ~ "reptile")) %>%
+                           str_detect(category, "fish") ~ "fish", str_detect(category, "bird") ~ "bird",
+                           TRUE ~ "reptile")) %>%
   mutate(`部位/左右` = case_when(`部位/左右` == "Ｌ" ~ "L", `部位/左右` == "Ｒ" ~ "R", TRUE ~ `部位/左右`)) %>%
   mutate(category = fct_relevel(category, "deer","boar","muntjac","cattle","rat","bird","fish","turtle")) %>%
-  mutate(cutmarks = case_when(str_detect(`人為痕跡`, "切")|str_detect(`人為痕跡`, "削")|
-                              str_detect(`人為痕跡`, "砍")~ "yes", TRUE ~ "no")) %>%
-  mutate(burn = case_when(str_detect(`人為痕跡`, "火")|str_detect(`人為痕跡`, "燒")~ "yes", TRUE ~ "no")) %>%
-  filter(is.na(refitted)) %>% # for NISP
-  filter(!`部位/名稱` %in% c("角","犄角","角?")) %>%  #not associated with diet
-  filter(!`部位/名稱`== "角基部"|!is.na(`部位/左右`)) # associated with cranial parts
+  mutate(modify = case_when(str_detect(`人為痕跡`, "切")|str_detect(`人為痕跡`, "削")|
+                            str_detect(`人為痕跡`, "砍")~ "cutmarks",
+                            str_detect(`人為痕跡`, "火")|str_detect(`人為痕跡`, "燒")~ "burn", TRUE ~ "no")) %>%
+  filter(is.na(refitted)) # for NISP
 
 # taxa counts
 fauna_combined_taxa <-
-  fauna_combined_context %>% count(taxa) %>%
-  mutate(percentage = n/sum(n))
+  fauna_combined_context %>%
+  count(taxa, `Weight (g)`) %>%
+  mutate(taxa = str_replace(taxa, "cervidae", "cervid")) %>%
+  mutate(taxa = case_when(str_detect(taxa, "mm") ~ paste("Unidentified", tolower(taxa), sep =" "),
+                          TRUE ~ taxa)) %>%
+  mutate(`Common name` = case_when(str_detect(taxa, "Cer") ~ "Sika deer", str_detect(taxa, "Bub") ~ "Water buffalo",
+                                   str_detect(taxa, "Rus") ~ "Sambar deer", str_detect(taxa, "Ree") ~ "Muntjac",
+                                   str_detect(taxa, "Sus") ~ "Boar", str_detect(taxa, "Bos") ~ "Yellow cattle",
+                                   str_detect(taxa, "Rat") ~ "Rat", str_detect(taxa, "Pli") ~ "Catfish",
+                                   str_detect(taxa, "Act") ~ "Ray-finned fish", str_detect(taxa, "Tes") ~ "Turtle",
+                                   str_detect(taxa, "cervid") ~ "Deer family")) %>%
+  mutate(group = case_when(str_detect(`Common name`, "deer") ~ 1, str_detect(`Common name`, "Deer") ~ 2,
+                           str_detect(taxa, "Sus") ~ 3, str_detect(taxa, "Bub")|str_detect(taxa, "Bos") ~ 4,
+                           str_detect(taxa, "munt") ~ 5, str_detect(taxa, "Rat") ~ 6, str_detect(`Common name`, "fish") ~ 7,
+                           str_detect(taxa, "Tes") ~ 8, str_detect(taxa, "Ave") ~ 9, str_detect(taxa, "large m") ~ 10,
+                           str_detect(taxa, "medium m") ~ 11, TRUE ~ 12)) %>%
+  mutate(`Common name` = as.factor(`Common name`)) %>%
+  group_by(group) %>%
+  arrange(desc(`Weight (g)`), .by_group = TRUE) %>%
+  ungroup () %>%
+  rename(Taxon = taxa, NISP = n) %>%
+  select(Taxon, `Common name`,  NISP, `Weight (g)`) %>%
+  bind_rows(summarise(., across(where(is.numeric), sum), across(where(is.character), ~"Total"))) %>%
+  mutate(`Common name`= ifelse(is.na(`Common name`)|`Common name` == "Total", "-", `Common name`))
 
 # calculate MNI
 fauna_combined_MNI <-
@@ -99,7 +121,7 @@ unit_by_period <-
   slice_tail(n = 6) %>%
   tibble::rownames_to_column("period")
 
-# ubiquity of taxa over the 40 units by temporal sequences
+# ubiquity of taxa from the 40 units by temporal sequences
 fauna_ubiquity <-
   fauna_combined_context %>%
   select(Pit, layer, category, `重量(g)`, period, taxa) %>%
@@ -264,10 +286,11 @@ fauna_broken_plot <-
 # count cutmarks throughout all taxa
 fauna_total_cut <-
   fauna_combined_context %>%
-  group_by(taxa, period, cutmarks) %>%
+  filter(modify == "cutmarks") %>%
+  group_by(taxa, period) %>%
   count() %>%
   rename(`NISP with cutmarks` = n) %>%
-  drop_na(period, taxa, cutmarks)
+  drop_na(period, taxa)
 
 # cutmarks on deer bones
 fauna_deer_joints <-
@@ -282,7 +305,7 @@ fauna_deer_joints <-
 # deer joints with cutmarks
 fauna_deer_cut <-
   fauna_deer_joints %>%
-  filter(cutmarks == "yes") %>%
+  filter(modify == "cutmarks") %>%
   group_by(period, joint, cutmarks) %>%
   count() %>%
   rename(`NISP with cutmarks` = n) %>%
@@ -388,14 +411,14 @@ res <- t.test(cut_percent ~ period, data = fauna_deer_skin_NNISP)
 # burn bones
 burnbone_deer <-
   fauna_deer_only %>%
-  filter(str_detect(`人為痕跡`, "燒")) %>%
+  filter(modify == "burn") %>%
   count(period) %>%
   rename(burn = n)
 
 # bones with cutmarks
 cutmarks_deer <-
   fauna_deer_only %>%
-  filter(cutmarks == "yes") %>%
+  filter(modify == "cutmarks") %>%
   count(period) %>%
   rename(cutmarks = n)
 
