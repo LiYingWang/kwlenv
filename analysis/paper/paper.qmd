@@ -90,12 +90,13 @@ Given that deerskin was a primary commodity in local regional exchange since the
 ```{r setup, include= FALSE}
 library(tidyverse)
 library(knitr)
+library(viridis)
+library(cowplot)
 ```
 
 ```{r}
 #| label: get-data
 #| echo: false
-#| cache.extra: tools::md5sum('KWL_faunal_P.xlsx')
 
 # read data
 kwl_fauna <- readxl::read_excel(here::here("analysis","data","raw_data","KWL_faunal_P.xlsx"), sheet = 1,
@@ -141,7 +142,7 @@ fauna_H_sam <-
   filter(componant == "上文化層") %>%
   left_join(kwl_chro_tidy_6, by = c("Pit" = "Pit", "layer" = "layer", "area" = "area"))
 
-fauna_combined_context <-
+fauna_combined_context_all <-
   rbind(fauna_sam, fauna_H_sam) %>% # combine the two datasets
   filter(!`部位/名稱` %in% c("角","犄角","角?")) %>%  #not associated with diet
   filter(!`部位/名稱`== "角基部"|!is.na(`部位/左右`)) %>% # associated with cranial parts
@@ -150,7 +151,8 @@ fauna_combined_context <-
   mutate(`Weight (g)` = sum(`重量(g)`, na.rm = T)) %>%
   ungroup() %>%
   mutate(period = factor(period, levels = c("CL1","CL2","CL3","CL4","CL5","CL6"), order = T)) %>%
-  mutate(category = case_when(str_detect(animal, "e deer") ~ "deer", str_detect(animal, "fish") ~ "fish",
+  mutate(category = case_when(str_detect(animal, "sika")|str_detect(animal, "sambar")|
+                              str_detect(animal, "e deer")~ "deer", str_detect(animal, "fish") ~ "fish",
                               str_detect(animal, "cattle")|str_detect(animal, "buffalo")~ "cattle",
                               animal == "aves" ~ "bird", TRUE ~ animal)) %>%
   mutate(class = case_when(str_detect(taxa, "muntjac")|str_detect(taxa, "ammal")|str_detect(taxa, "erv")|
@@ -159,22 +161,19 @@ fauna_combined_context <-
                            str_detect(category, "fish") ~ "fish", str_detect(category, "bird") ~ "bird",
                            TRUE ~ "reptile")) %>%
   mutate(`部位/左右` = case_when(`部位/左右` == "Ｌ" ~ "L", `部位/左右` == "Ｒ" ~ "R", TRUE ~ `部位/左右`)) %>%
-  mutate(category = fct_relevel(category, "deer","boar","muntjac","cattle","rat","bird","fish","turtle")) %>%
-  mutate(modify = case_when(str_detect(`人為痕跡`, "切")|str_detect(`人為痕跡`, "削")|
+  mutate(category = fct_relevel(category, "deer","boar","muntjac","cattle","rat","bird","fish","turtle")) %>%  mutate(modify = case_when(str_detect(`人為痕跡`, "切")|str_detect(`人為痕跡`, "削")|
                             str_detect(`人為痕跡`, "砍")~ "cutmarks",
-                            str_detect(`人為痕跡`, "火")|str_detect(`人為痕跡`, "燒")~ "burn", TRUE ~ "no")) %>%
-  filter(is.na(refitted)) # for NISP
+                            str_detect(`人為痕跡`, "火")|str_detect(`人為痕跡`, "燒")~ "burn", TRUE ~ "no")) %>%filter(is.na(refitted)) # for NISP
+
+fauna_combined_context <- fauna_combined_context_all %>% filter(!taxa == "Rattus sp.")
 ```
 
 ```{r}
-#| label: tbl-counts
+#| label: taxa-NISP-counts
 #| echo: false
-#| tbl-cap: "Taxa, Number of Identified Specimens (NISP), and weight of faunal remains from the sampled area at Kiwulan."
-#| tbl-colwidths: [40,25,15,20]
-#| tbl-cap-location: bottom
 # taxa counts
 fauna_combined_taxa <-
-  fauna_combined_context %>%
+  fauna_combined_context_all %>%
   count(taxa, `Weight (g)`) %>%
   mutate(taxa = str_replace(taxa, "cervidae", "cervid")) %>%
   mutate(taxa = case_when(str_detect(taxa, "mm") ~ paste("Unidentified", tolower(taxa), sep =" "),
@@ -204,15 +203,50 @@ total_NISP <- fauna_combined_taxa %>% select(NISP) %>% tail(1) #rev(fauna_combin
 unident <- fauna_combined_taxa %>% filter(str_detect(Taxon, "Uni")) %>% summarise(sum(NISP))
 deer_NISP <- fauna_combined_taxa %>% 
   filter(str_detect(`Common name`, "eer")|str_detect(Taxon, "Ree")) %>% summarise(sum(NISP))
-deer_NISP_per <- round(deer_NISP/(total_NISP-unident), 1)*100
+deer_NISP_per <- round(deer_NISP/(total_NISP-unident), 3)*100
+```
 
+The NISP of faunal assemblages from Kiwulan analyzed in this study is `r total_NISP`, where deer family is the majority that accounts for about `r deer_NISP_per`% of the identified bones, followed by boar and cattle as the second and third taxon (@tbl-counts). Within the assemblages from deer family, sika deer is the most common animal, with a few assemblages identified as muntjac and a specimen indicating a possible affiliation with sambar deer. Although sika deer was the major animal source at the site, variations in animal use could be observed between different cultural layers across 600 years. To highlight general patterns of dietary practices in terms of their economic values over time, deer family were separated into two categories based on body size, deer (sika deer, sambar deer, and large deer) and muntjac, while water buffalo and yellow cattle were combined into one category, cattle. Rats (Rattus sp.) were excluded from further analysis as they are normally considered commensal animals, and their relatively intact skeletons from one single archaeological context show no direct evidence of being part of the daily diet.
 
+```{r}
+#| label: tbl-counts
+#| echo: false
+#| tbl-cap: "Taxa, Number of Identified Specimens (NISP), and weight of faunal remains from the sampled area at Kiwulan."
+#| tbl-colwidths: [40,25,15,20]
+#| tbl-cap-location: bottom
 library(kableExtra)
 knitr::kable(fauna_combined_taxa, align = "l") 
 ```
 
-The NISP of faunal assemblages from Kiwulan analyzed in this study is `r total_NISP`, where deer family is the majority that accounts for about `r deer_NISP_per`% of the identified bones, followed by boar and cattle as the second and third source based on NISP (@tbl-counts). Within the bones from deer family, sika deer's bone is the most common one, with a few bones from muntjact and a specimen indicating a possible affiliation with sambar deer. Although sika deer was the major animal source at the site, variations could be observed between different cultural layers across 600 years. To examine and compare general patterns of animal use in terms of their economic values over time, deer family were separated into two categories, deer (sika deer, sambar deer, and large deer) and muntjac, while water buffalo and yellow cattle (NISP = 1) were combined into the cattle category. 
+```{r}
+#| label: mammal-counts
+#| echo: false
+mammal_count <-
+  fauna_combined_context %>%
+  filter(class == "mammal") %>%
+  count(period, category) %>% 
+  drop_na() %>% 
+  bind_rows(summarise(., across(where(is.numeric), sum), .by = period)) 
+  
 
+mutate(category = ifelse(is.na(category), "total", category))
+
+CL4 <- mammal_count %>% filter(period == "CL4") 
+CL4_boar <- round(CL4$n[2]/CL4$n[4], 3)*100
+
+
+
+```
+
+For animal classes, mammals are the primary dietary source throughout all layers, with fish as the secondary source in the layer 4 and birds in the layer 3 and the layer 2 (@fig-NISP-proportion: A). Fish and birds both identified from the layer 5 to the layer 3; however, their proportions (less then 10%) are much lower compared to mammals. Reptile is represented by one piece of turtle shell found in the layer 4, which might not be a common food content at the site. Within those identifiable mammals, deer is the major source from the layer 6 to the layer 2 that account for at least 85 % per layer, while the layer 1 is predominated only by cattle (@fig-NISP-proportion: B). Wild boar was present from the layer 6 to layer 3, and has a higher proportion in the layer 4 (`r CL4_boar` %), while muntjac appeared in the layer 5, and continuously present to the layer 2. Given that relative abundances could be impacted by sample size effect across layers, the relationship between NISP and sample size for major taxa were examined by linear regression model. The results shows that  
+
+```{r}
+#| label: fig-NISP-proportion
+#| echo: false
+#| fig-cap: "A: Relative abundance of vertebrate classes by cultural layers based on normed NISP. The data is derived from Table 1. B: Relative abundance of mammals by cultural layers based on NISP. CL6 to CL1 prepresent cultural layers from the earliest to the latest layer. The NISP for each layer is CL6: 46, CL5: 65, CL4: 156, CL3: 28, CL2: 12, and CL1: 25."
+
+knitr::include_graphics(here::here("analysis/figures/NISP_pro_by_layer.png"))
+```
 
 ```{r}
 #| label: ubiquity
