@@ -44,7 +44,7 @@ fauna_H_sam <-
   left_join(kwl_chro_tidy_6, by = c("Pit" = "Pit", "layer" = "layer", "area" = "area"))
 
 # combine and tidy data from midden and cultural layers
-fauna_combined_context <-
+fauna_combined_context_all <-
   rbind(fauna_sam, fauna_H_sam) %>% # combine the two datasets
   filter(!`部位/名稱` %in% c("角","犄角","角?")) %>%  #not associated with diet
   filter(!`部位/名稱`== "角基部"|!is.na(`部位/左右`)) %>% # associated with cranial parts
@@ -53,7 +53,8 @@ fauna_combined_context <-
   mutate(`Weight (g)` = sum(`重量(g)`, na.rm = T)) %>%
   ungroup() %>%
   mutate(period = factor(period, levels = c("CL1","CL2","CL3","CL4","CL5","CL6"), order = T)) %>%
-  mutate(category = case_when(str_detect(animal, "e deer") ~ "deer", str_detect(animal, "fish") ~ "fish",
+  mutate(category = case_when(str_detect(animal, "sika")|str_detect(animal, "sambar")|
+                              str_detect(animal, "e deer")~ "deer", str_detect(animal, "fish") ~ "fish",
                               str_detect(animal, "cattle")|str_detect(animal, "buffalo")~ "cattle",
                               animal == "aves" ~ "bird", TRUE ~ animal)) %>%
   mutate(class = case_when(str_detect(taxa, "muntjac")|str_detect(taxa, "ammal")|str_detect(taxa, "erv")|
@@ -70,7 +71,7 @@ fauna_combined_context <-
 
 # taxa counts
 fauna_combined_taxa <-
-  fauna_combined_context %>%
+  fauna_combined_context_all %>%
   count(taxa, `Weight (g)`) %>%
   mutate(taxa = str_replace(taxa, "cervidae", "cervid")) %>%
   mutate(taxa = case_when(str_detect(taxa, "mm") ~ paste("Unidentified", tolower(taxa), sep =" "),
@@ -86,7 +87,6 @@ fauna_combined_taxa <-
                            str_detect(taxa, "munt") ~ 5, str_detect(taxa, "Rat") ~ 6, str_detect(`Common name`, "fish") ~ 7,
                            str_detect(taxa, "Tes") ~ 8, str_detect(taxa, "Ave") ~ 9, str_detect(taxa, "large m") ~ 10,
                            str_detect(taxa, "medium m") ~ 11, TRUE ~ 12)) %>%
-  mutate(`Common name` = as.factor(`Common name`)) %>%
   group_by(group) %>%
   arrange(desc(`Weight (g)`), .by_group = TRUE) %>%
   ungroup () %>%
@@ -97,9 +97,68 @@ fauna_combined_taxa <-
 
 # calculate MNI
 fauna_combined_MNI <-
-  fauna_combined_context %>%
+  fauna_combined_context_all %>%
   filter(!is.na(`部位/左右`)) %>%
   count(`部位/左右`, category, `部位/名稱`)
+
+fauna_combined_context <-
+  fauna_combined_context_all %>%
+  filter(!taxa == "Rattus sp.")
+
+################### Taxonomic abundance ###################
+# barplot I: classes of vertebrates by period (NISP)
+verte_class_barplot <-
+  fauna_combined_context %>%
+  drop_na(period, class) %>%
+  group_by(period) %>%
+  mutate(class = factor(class, levels = c("mammal", "bird", "fish", "reptile"), ordered = TRUE)) %>%
+  ggplot(aes(x = period, fill = class))+
+  geom_bar(position = "fill", width = 0.7) + #position_dodge2(preserve = "single")
+  labs(y = "NISP", x = NULL) +
+  scale_y_continuous(labels = scales::percent) +
+  theme_minimal() +
+  theme(legend.title=element_blank())
+
+# barplot II: classes of vertebrates by period (normed NISP across classes)
+verte_class_barplot_normed <-
+  fauna_combined_context %>%
+  count(period, class) %>% #class
+  drop_na(period, class) %>%
+  mutate(NNISP = case_when(str_detect(class, "mammal") ~ n/205,
+                           str_detect(class, "bird") ~ n/120,
+                           str_detect(class, "fish") ~ n/150,
+                           str_detect(class, "reptile") ~ n/200)) %>%
+  mutate(class = factor(class, levels = c("mammal", "bird", "fish", "reptile"), ordered = TRUE)) %>%
+  group_by(period) %>%
+  summarise(total_per_period = sum(NNISP), across()) %>%
+  mutate(`%NNISP` = (NNISP/total_per_period)*100) %>%
+  ggplot(aes(x = period, y = `%NNISP`))+
+  geom_bar(stat = "identity", aes(fill = class), width = 0.7) +
+  labs(y = "%NNISP", x = NULL) +
+  theme_minimal()
+
+# barplot III: relative abundance of mammals by period
+library(viridis)
+verte_mammal_barplot <-
+  fauna_combined_context %>%
+  filter(class == "mammal" &!category == "rat") %>%
+  drop_na(period, category) %>% # remove category to get absolute abundance
+  mutate(category = factor(category, levels = c("deer", "boar", "muntjac", "cattle"), ordered = TRUE)) %>%
+  ggplot(aes(x = period, fill = category))+
+  geom_bar(position = "fill", width = 0.7) +
+  labs(y = "%NISP", x = NULL) +
+  scale_y_continuous(labels = scales::percent) +
+  theme_minimal() +
+  scale_fill_viridis_d(option="magma", begin = 0.2, end = 0.9) +  #plasma
+  guides(fill= guide_legend(title="mammal"))
+
+library(cowplot)
+plot_grid(verte_class_barplot_normed, verte_mammal_barplot,
+          labels = c('A', 'B'), rel_widths = c(1, 1), label_size = 12)
+
+ggsave(here::here("analysis","figures", "NISP_pro_by_period.png"),
+       bg = "white",width = 8, height = 3, dpi = 360, units = "in")
+
 
 ################### ubiquity ###################
 # calculate the number of units for each cultural layers
@@ -133,56 +192,6 @@ fauna_ubiquity <-
   select(-n, -unit_count) %>%
   pivot_wider(names_from = period, values_from = ubiquity) %>%
   arrange(category)
-
-################### Taxonomic abundance ###################
-# barplot I: classes of vertebrates by period (NISP)
-verte_class_barplot <-
-  fauna_combined_context %>%
-  drop_na(period, class) %>%
-  group_by(period) %>%
-  mutate(class = factor(class, levels = c("mammal", "bird", "fish", "reptile"), ordered = TRUE)) %>%
-  ggplot(aes(x = period, fill = class))+
-  geom_bar(position = "fill", width = 0.7) + #position_dodge2(preserve = "single")
-  labs(y = "NISP", x = NULL) +
-  scale_y_continuous(labels = scales::percent) +
-  theme_minimal() +
-  theme(legend.title=element_blank())
-
-# barplot II: classes of vertebrates by period (normed NISP across classes)
-verte_class_barplot_normed <-
-  fauna_combined_context %>%
-  count(period, class) %>% #class
-  drop_na(period, class) %>%
-  mutate(NNISP = case_when(str_detect(class, "mammal") ~ n/205,
-                           str_detect(class, "bird") ~ n/130,
-                           str_detect(class, "fish") ~ n/150,
-                           str_detect(class, "reptile") ~ n/200)) %>%
-  mutate(class = factor(class, levels = c("mammal", "bird", "fish", "reptile"), ordered = TRUE)) %>%
-  group_by(period) %>%
-  summarise(total_per_period = sum(NNISP), across()) %>%
-  mutate(`%NNISP` = (NNISP/total_per_period)*100) %>%
-  ggplot(aes(x = period, y = `%NNISP`))+
-  geom_bar(stat = "identity", aes(fill = class), width = 0.7) +
-  labs(y = "%NNISP", x = NULL) +
-  theme_minimal() +
-  theme(legend.title=element_blank())
-
-# barplot III: relative abundance of mammals by period
-library(viridis)
-verte_mammal_barplot <-
-  fauna_combined_context %>%
-  filter(class == "mammal" &!category == "rat") %>%
-  drop_na(period, category) %>% # remove category to get absolute abundance
-  mutate(category = factor(category, levels = c("deer", "boar", "muntjac", "cattle"), ordered = TRUE)) %>%
-  ggplot(aes(x = period, fill = category))+
-  geom_bar(position = "fill", width = 0.6) +
-  labs(y = "NISP", x = NULL) +
-  scale_y_continuous(labels = scales::percent) +
-  theme_minimal() +
-  scale_fill_viridis_d(option="magma", begin = 0.2, end = 0.9,) +
-  guides(fill= guide_legend(title="mammal"))
-
-#ggsave(here::here("analysis", "figures", ".png"), h = 3, w =5, units = "in")
 
 ################### Skeletal part ###################
 fauna_deer_only <-
