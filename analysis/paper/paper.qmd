@@ -206,7 +206,7 @@ deer_NISP <- fauna_combined_taxa %>%
 deer_NISP_per <- round(deer_NISP/(total_NISP-unident), 3)*100
 ```
 
-The NISP of faunal assemblages from Kiwulan analyzed in this study is `r total_NISP`, where deer family is the majority that accounts for about `r deer_NISP_per`% of the identified bones, followed by boar and cattle as the second and third taxon (@tbl-counts). Within the assemblages from deer family, sika deer is the most common animal, with a few assemblages identified as muntjac and a specimen indicating a possible affiliation with sambar deer. Although sika deer was the major animal source at the site, variations in animal use could be observed between different cultural layers across 600 years. To highlight general patterns of dietary practices in terms of their economic values over time, deer family were separated into two categories based on body size, deer (sika deer, sambar deer, and large deer) and muntjac, while water buffalo and yellow cattle were combined into one category, cattle. Rats (Rattus sp.) were excluded from further analysis as they are normally considered commensal animals, and their relatively intact skeletons from one single archaeological context show no direct evidence of being part of the daily diet.
+The NISP of faunal assemblages from Kiwulan analyzed in this study is `r total_NISP`, where deer family is the majority that accounts for about `r deer_NISP_per`% of the identified bones, followed by boar and cattle as the second and third taxon (@tbl-counts). Within the assemblages from the deer family, sika deer is the most common animal, with a few assemblages identified as muntjac and a specimen indicating a possible affiliation with sambar deer. Although sika deer was the major animal source at the site, variations in animal use could be observed between different cultural layers across 600 years. To highlight general patterns of dietary practices in terms of their economic values over time, the deer family were separated into two categories based on body size, deer (sika deer, sambar deer, and large deer) and muntjac, while water buffalo and yellow cattle were combined into one category, cattle. Rats (Rattus sp.) were excluded from further analysis as they are normally considered commensal animals, and their relatively intact skeletons from one single archaeological context show no direct evidence of being part of the daily diet.
 
 ```{r}
 #| label: tbl-counts
@@ -226,19 +226,42 @@ mammal_count <-
   filter(class == "mammal") %>%
   count(period, category) %>% 
   drop_na() %>% 
-  bind_rows(summarise(., across(where(is.numeric), sum), .by = period)) 
-  
-
-mutate(category = ifelse(is.na(category), "total", category))
+  bind_rows(summarise(., across(where(is.numeric), sum), .by = period)) %>% 
+  mutate(category = as.character(category)) %>% 
+  mutate(category = ifelse(is.na(category), "total", category))
 
 CL4 <- mammal_count %>% filter(period == "CL4") 
 CL4_boar <- round(CL4$n[2]/CL4$n[4], 3)*100
 
+# taxonomic diversity
+category_count <-
+  fauna_combined_context %>%
+  count(period, category) %>% 
+  count(period, category) %>% 
+  drop_na() %>% 
+  bind_rows(summarise(., across(where(is.numeric), sum), .by = period)) %>% 
+  slice(24:29) %>% 
+  select(period, n) %>% 
+  rename(diversity = n)
+
+# wide format and join
+wider_mammal_count <-
+  mammal_count %>% 
+  pivot_wider(id_cols = period, names_from = category, values_from = n, values_fill = 0) %>% 
+  left_join(category_count)
+
+boar_reg <- summary(lm(boar ~ total, data = wider_mammal_count))
+boar_lm <- c(round(boar_reg$adj.r.squared, 2), sprintf('%.3f', boar_reg$coefficients[,4][2]))
+munt_reg <- summary(lm(muntjac ~ total, data = wider_mammal_count))
+munt_lm <- c(round(munt_reg$adj.r.squared, 2), sprintf('%.2f', munt_reg$coefficients[,4][2]))
+deer_reg <- summary(lm(deer ~ total, data = wider_mammal_count))
+div_reg <- summary(lm(diversity ~ total, data = wider_mammal_count))
+div_lm <- c(round(div_reg$adj.r.squared, 2), sprintf('%.2f', div_reg$coefficients[,4][2]))
 
 
 ```
 
-For animal classes, mammals are the primary dietary source throughout all layers, with fish as the secondary source in the layer 4 and birds in the layer 3 and the layer 2 (@fig-NISP-proportion: A). Fish and birds both identified from the layer 5 to the layer 3; however, their proportions (less then 10%) are much lower compared to mammals. Reptile is represented by one piece of turtle shell found in the layer 4, which might not be a common food content at the site. Within those identifiable mammals, deer is the major source from the layer 6 to the layer 2 that account for at least 85 % per layer, while the layer 1 is predominated only by cattle (@fig-NISP-proportion: B). Wild boar was present from the layer 6 to layer 3, and has a higher proportion in the layer 4 (`r CL4_boar` %), while muntjac appeared in the layer 5, and continuously present to the layer 2. Given that relative abundances could be impacted by sample size effect across layers, the relationship between NISP and sample size for major taxa were examined by linear regression model. The results shows that  
+For animal classes, the relative abundance shows that mammals are the primary dietary source throughout all layers, with fish as the secondary source in layer 4 and birds in layer 3 and layer 2 (@fig-NISP-proportion: A). Fish and birds are both identified from layer 5 to layer 3; however, their proportions (less than 10%) are much lower compared to mammals. The reptile is represented by one piece of turtle shell found in layer 4, which might not be a common food content at the site. Within those identifiable mammals, deer is the major source from layer 6 to layer 2 that accounts for at least 85% per layer, while layer 1 is predominated only by cattle (@fig-NISP-proportion: B). Wild boar was present from layer 6 to layer 3, and had a higher proportion in layer 4 (`r CL4_boar` %), while muntjac appeared in layer 5, and was continuously present until layer 2. In general, more diverse animals were found from layer 5 to layer 3, especially in layer 4, where boar and fish have slightly higher proportions compared with other layers. Given that the taxonomic richness, or diversity of animals, could be impacted by sample size varied from layer to layer, the relationship between the number of taxa and sample size (NISP) was examined by linear regression model. The result shows no correlation between the diversity of animals and sample size ($R^2$ = `r div_lm[1]`, P = `r div_lm[2]`), which rules out the potential sample size bias.
 
 ```{r}
 #| label: fig-NISP-proportion
@@ -249,10 +272,10 @@ knitr::include_graphics(here::here("analysis/figures/NISP_pro_by_layer.png"))
 ```
 
 ```{r}
-#| label: ubiquity
+#| label: tbl-ubiquity
 #| echo: false
 #| tbl-cap: "Ubiquity of faunal categories over the 40 units"
-#| tbl-colwidths: [60,40]
+#| tbl-cap-location: bottom
 # calculate the number of units for each cultural layers
 kwl_unit_per_period <-
   kwl_chro_6 %>%
@@ -289,7 +312,7 @@ fauna_ubiquity <-
 knitr::kable(fauna_ubiquity)
 ```
 
-@ubiquity shows how we can have a caption and cross-reference for a plot. Note that figure label and cross-references must both be prefixed with `fig-`
+@tbl-ubiquity shows how we can have a caption and cross-reference for a plot. Note that figure label and cross-references must both be prefixed with `fig-`
 
 ```{r}
 #| label: demo-inline-code
