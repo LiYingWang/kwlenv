@@ -290,7 +290,7 @@ deer_portion_plot <-
 # long bones
 deer_long_bone <-
   fauna_deer_only %>%
-  filter(`部位/名稱` %in% c("脛骨","股骨","肱骨","尺骨","上肢骨","掌骨","掌骨或蹠骨","蹠骨")) %>%
+  filter(`部位/名稱` %in% c("脛骨","股骨","肱骨","橈骨","尺骨","上肢骨","掌骨","掌骨或蹠骨","蹠骨")) %>%
   count(period, `部位/位置`) %>%
   mutate(zone = case_when(str_detect(`部位/位置`, "prox.")|`部位/位置` == "art." ~ "proximal",
                           str_detect(`部位/位置`, "dis.") ~ "distal", str_detect(`部位/位置`, "com.") ~ "complete",
@@ -396,7 +396,7 @@ ggsave(here::here("analysis", "figures", "talk-fauna-3.png"), h = 4, w =4.5, uni
 # t-test (for two groups only)
 res <- t.test(cut_percent ~ period, data = fauna_deer_NNISP)
 
-################### Cutmarks related to skinning ###################
+################### cutmarks related to skinning ###################
 # Skeletal elements related to skinning
 deerskin_portion <-
   fauna_deer_only %>%
@@ -456,17 +456,25 @@ ggsave(here::here("analysis", "figures", "deer-cut.png"), h = 4, w =8, units = "
 res <- t.test(cut_percent ~ period, data = fauna_deer_skin_NNISP)
 
 ###############modification################
-
-# burn with human modification
+# bones with surface modifications
 burned_deer <- fauna_deer_only %>% filter(burning == "yes") %>% count(period) %>% rename(burned = n)
 cutmark_deer <- fauna_deer_only %>% filter(cutmarks == "yes") %>% count(period) %>% rename(cutmarks = n)
-frac_deer <- fauna_deer_only %>% filter(fractures  == "yes") %>% count(period) %>% rename(fractures = n)
-list_modif <- list(cutmark_deer, frac_deer, burned_deer, deer_NISP)
+frac_deer <- fauna_deer_only %>% filter(fractures  == "yes") %>%
+  filter(`部位/名稱` %in% c("脛骨","股骨","肱骨","橈骨","上肢骨","掌骨","掌骨或蹠骨","蹠骨")) %>%
+  count(period) %>% rename(fractures = n)
+
+list_modif <- list(burned_deer, cutmark_deer, frac_deer, deer_NISP)
 
 # join
 deer_modify <-
   list_modif %>%
   reduce(inner_join, by = 'period') %>%
-  mutate(cut_per = round(cutmarks/NISP, 3) * 100, frac_per = round(fractures/NISP, 3) * 100,
-         burn_per = round(burned/NISP, 3) * 100)
+  mutate(cut_per = round(cutmarks/NISP, 3) * 100, burn_per = round(burned/NISP, 3) * 100,
+         frac_per = round(fractures/NISP, 3) * 100) %>%
+  mutate(burned = paste(burned, paste0("(", burn_per, " %)")),
+         cutmarks = paste(cutmarks, paste0("(", cut_per, " %)")),
+         fractures = paste(fractures, paste0("(", frac_per, " %)"))) %>%
+  rename(`cut marks` = cutmarks) %>%
+  select(-cut_per, -frac_per, -burn_per)
+
 
