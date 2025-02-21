@@ -106,7 +106,7 @@ fauna_combined_context <-
   fauna_combined_context_all %>%
   filter(!taxa == "Rattus sp.")
 
-################### Taxonomic abundance ###################
+################### NISP & Taxonomic abundance ###################
 # barplot I: NISP by period (NISP)
 NISP_barplot <-
   fauna_combined_context %>%
@@ -118,40 +118,7 @@ NISP_barplot <-
   theme_minimal() +
   theme(legend.title=element_blank())
 
-# barplot II: classes of vertebrates by period (normed NISP across classes)
-verte_class_barplot_normed <-
-  fauna_combined_context %>%
-  count(period, class) %>% #class
-  drop_na(period, class) %>%
-  mutate(NNISP = case_when(str_detect(class, "mammal") ~ n/205,
-                           str_detect(class, "bird") ~ n/120,
-                           str_detect(class, "fish") ~ n/150,
-                           str_detect(class, "reptile") ~ n/200)) %>%
-  mutate(class = factor(class, levels = c("mammal", "bird", "fish", "reptile"), ordered = TRUE)) %>%
-  group_by(period) %>%
-  summarise(total_per_period = sum(NNISP), across()) %>%
-  mutate(`%NNISP` = (NNISP/total_per_period)*100) %>%
-  ggplot(aes(x = period, y = `%NNISP`))+
-  geom_bar(stat = "identity", aes(fill = class)) +
-  labs(y = "%NNISP", x = NULL) +
-  theme_minimal()
-
-# barplot III: relative abundance of mammals by period
-library(viridis)
-verte_mammal_barplot <-
-  fauna_combined_context %>%
-  filter(class == "mammal") %>%
-  drop_na(period, category) %>% # remove category to get absolute abundance
-  mutate(category = factor(category, levels = c("deer", "boar", "muntjac", "cattle"), ordered = TRUE)) %>%
-  ggplot(aes(x = period, fill = category))+
-  geom_bar(position = "fill") +
-  labs(y = "%NISP", x = NULL) +
-  scale_y_continuous(labels = scales::percent) +
-  theme_minimal() +
-  scale_fill_viridis_d(option="magma", begin = 0.2, end = 0.9) +  #plasma
-  guides(fill= guide_legend(title="mammal"))
-
-# broken bones(all taxa)
+# barplot II: broken bones (all taxa)
 fauna_broken <-
   kwl_fauna_broken %>%
   mutate(area = ifelse(is.na(area), "C", area)) %>% # assign to blanks that won't change the pattern
@@ -170,6 +137,39 @@ fauna_broken_plot <-
   geom_col(width = 0.6)+
   labs(x= NULL, y = "Small bone (g)") +
   theme_minimal()
+
+# barplot III: classes of vertebrates by period (normed NISP across classes)
+verte_class_barplot_normed <-
+  fauna_combined_context %>%
+  count(period, class) %>% #class
+  drop_na(period, class) %>%
+  mutate(NNISP = case_when(str_detect(class, "mammal") ~ n/205,
+                           str_detect(class, "bird") ~ n/120,
+                           str_detect(class, "fish") ~ n/150,
+                           str_detect(class, "reptile") ~ n/200)) %>%
+  mutate(class = factor(class, levels = c("mammal", "bird", "fish", "reptile"), ordered = TRUE)) %>%
+  group_by(period) %>%
+  summarise(total_per_period = sum(NNISP), across()) %>%
+  mutate(`%NNISP` = (NNISP/total_per_period)*100) %>%
+  ggplot(aes(x = period, y = `%NNISP`))+
+  geom_bar(stat = "identity", aes(fill = class)) +
+  labs(y = "%NNISP", x = NULL) +
+  theme_minimal()
+
+# barplot V: relative abundance of mammals by period
+library(viridis)
+verte_mammal_barplot <-
+  fauna_combined_context %>%
+  filter(class == "mammal") %>%
+  drop_na(period, category) %>% # remove category to get absolute abundance
+  mutate(category = factor(category, levels = c("deer", "boar", "muntjac", "cattle"), ordered = TRUE)) %>%
+  ggplot(aes(x = period, fill = category))+
+  geom_bar(position = "fill") +
+  labs(y = "%NISP", x = NULL) +
+  scale_y_continuous(labels = scales::percent) +
+  theme_minimal() +
+  scale_fill_viridis_d(option="magma", begin = 0.2, end = 0.9) +  #plasma
+  guides(fill= guide_legend(title="mammal"))
 
 library(cowplot)
 top <- plot_grid(NISP_barplot, fauna_broken_plot, labels = c("A","B"))
@@ -318,11 +318,9 @@ deer_MNE <-
   group_by(period) %>%
   summarise(MNE = sum(n), across())
 
-deer_NISP <-
-  fauna_deer_only %>% count(period) %>% rename(NISP = n)
+deer_NISP <- fauna_deer_only %>% count(period) %>% rename(NISP = n)
 
-frag_index <-
-  left_join(deer_MNE, deer_NISP) %>% mutate(index = MNE/NISP)
+frag_index <- left_join(deer_MNE, deer_NISP) %>% mutate(index = MNE/NISP)
 
 weight_head <-
   fauna_deer_portion %>%
@@ -337,25 +335,27 @@ weight_head <-
 
 #ggsave(here::here("analysis", "figures", "talk-fauna-6.png"), h = 2, w =4, units = "in")
 
-################### Cutmarks ###################
-# count cutmarks throughout all taxa
+################### Cut marks ###################
+# count cut marks throughout all taxa
 fauna_total_cut <-
   fauna_combined_context %>%
   filter(cutmarks == "yes") %>%
   group_by(taxa, period) %>%
   count() %>%
-  rename(`NISP with cutmarks` = n) %>%
   drop_na(period, taxa)
 
 # cutmarks on deer bones
-fauna_deer_joints <-
+fauna_deer_joints <- # based on Lyman (2005)
   fauna_deer_portion  %>%
-  mutate(joint = case_when(`部位/名稱` %in% c( "肩胛骨") ~ "shoulder",
-                             `部位/名稱` %in% c("橈骨","尺骨","肱骨") ~ "elbow",
-                             `部位/名稱` %in% c("掌骨","腕骨") ~ "wrist", #"掌骨或蹠骨"
-                             `部位/名稱` %in% c("髖骨","股骨","薦骨") ~ "hip",
-                             `部位/名稱` %in% c("脛骨") ~ "knee",
-                             `部位/名稱` %in% c("蹠骨", "跟骨", "附骨", "astragalus") ~ "ankle")) #"蹠骨(或掌骨)"
+  mutate(part = paste0(`部位/名稱`,`部位/位置`)) %>%
+  select(period, cutmarks, part, "人為痕跡", "部位/名稱") %>%
+  mutate(joint = case_when(str_detect(part, "肩胛骨dis")|str_detect(part, "肩胛骨art")|str_detect(part, "肱骨prox") ~ "shoulder",
+         str_detect(part, "肱骨dis")|str_detect(part, "橈骨prox")|str_detect(part, "尺骨prox")|str_detect(part, "尺骨art") ~ "elbow",
+         str_detect(part, "橈骨dis")|str_detect(part, "尺骨dis")|str_detect(part, "腕骨")|str_detect(part, "掌骨prox") ~ "wrist",
+         str_detect(part, "髖骨art")|str_detect(part, "髖骨ili")|str_detect(part, "股骨prox") ~ "hip",
+         str_detect(part, "股骨dis")|str_detect(part, "脛骨prox") ~ "knee",
+         str_detect(part, "脛骨dis")|str_detect(part, "跟骨") |str_detect(part, "跗骨")|
+         str_detect(part, "astragalus")|str_detect(part, "蹠骨prox") ~ "ankle")) #"蹠骨(或掌骨)"
 
 # deer joints with cutmarks
 fauna_deer_cut <-
@@ -367,7 +367,7 @@ fauna_deer_cut <-
   drop_na()
 
 # deer bones by portion in total
-fauna_deer_NNISP <-
+deer_cut_pro <-
   fauna_deer_joints %>%
   group_by(period, joint) %>%
   count() %>%
@@ -375,18 +375,17 @@ fauna_deer_NNISP <-
   rename(NISP = n) %>%
   drop_na() %>%
   #mutate_all(funs(ifelse(is.na(.), 0, .))) %>%
-  mutate(proportion = round(`NISP with cutmarks`/NISP, 2), NNISP = NISP/2) %>%
+  #mutate(proportion = round(`NISP with cutmarks`/NISP, 2), NNISP = NISP/2) %>% #%NNISP= NNISP/sum(NNISP)
   group_by(period) %>%
-  mutate(`%NNISP` = round(NNISP/sum(NNISP), 2)) %>%
-  mutate(cut_percent = `%NNISP` * proportion)
+  mutate(proportion  = `NISP with cutmarks`/NISP)
 
 # plot
-deer_cut <-
-  ggplot(fauna_deer_NNISP, aes(x = period, y = proportion,
+deer_cut_plot <-
+  ggplot(deer_cut_pro, aes(x = period, y = proportion,
          fill = factor(joint, levels = (c("shoulder","elbow","wrist","hip","knee","ankle"))))) +
   geom_bar(stat = "identity", position = position_dodge2(preserve = "single")) +
   scale_color_discrete(breaks=c("CL1", "CL2", "CL3", "CL4", "CL5", "CL6")) +
-  labs(x = NULL, y = "joints with cutmarks (%NNISP)") +
+  labs(x = NULL, y = "joints with cutmarks (%NISP)") +
   guides(fill= guide_legend(title="joints"))+
   scale_fill_viridis_d(labels=c("shoulder","elbow","wrist","hip","knee","ankle")) +
   theme_minimal()
@@ -404,8 +403,7 @@ deerskin_portion <-
     str_detect(.$`部位/名稱`, "掌骨")|str_detect(.$`部位/名稱`, "蹠骨") ~ "metapodials",
     str_detect(.$`部位/名稱`, "腕骨")|str_detect(.$`部位/名稱`, "跗骨") ~ "carpal/tarsal",
     str_detect(.$`部位/名稱`, "趾骨") ~ "phalanges", str_detect(.$`部位/名稱`, "頸椎")|
-    str_detect(.$`部位/名稱`, "枕骨")|str_detect(.$`部位/名稱`, "薦骨") ~ "neck/tail regions",
-    TRUE ~ "others"))
+    str_detect(.$`部位/名稱`, "枕骨") ~ "neck/tail regions", TRUE ~ "others"))
 
 # NISP for skeletal elements related to skinning
 deerskin_portion_NISP <-
@@ -426,14 +424,14 @@ deer_skinning_related <-
   scale_fill_viridis_d(labels=c('carpal/\ntarsal', 'metapodials', 'neck/\ntail regions', 'phalanges')) +
   theme_minimal()
 
-# NISP with circular and straight cutmarks
+# NISP with skinning cutmarks
 deerskin_portion_NISP_cut <-
   deerskin_portion %>%
-  filter(str_detect(`人為痕跡`, "切")) %>%
+  filter(!skinning_cut == "others") %>%
+  filter(str_detect(`人為痕跡`, "s")) %>%
   group_by(period, skinning_cut) %>%
   count() %>%
   left_join(deerskin_portion_NISP) %>%
-  drop_na() %>%
   mutate(proportion = n/NISP_skin_bone)
 
 # plot the proportion of skinning bones with cutmarks
@@ -447,8 +445,7 @@ deer_cut_skinning <-
   theme_minimal()
 
 # combine
-plot_grid(deer_cut, deer_cut_skinning,
-          labels = c('A', 'B'), rel_widths = c(1, 1.55), label_size = 12)
+plot_grid(deer_cut, deer_cut_skinning, labels = c('A', 'B'), rel_widths = c(1, 1.55), label_size = 12)
 
 ggsave(here::here("analysis", "figures", "deer-cut.png"), h = 4, w =8, units = "in")
 
@@ -462,19 +459,34 @@ cutmark_deer <- fauna_deer_only %>% filter(cutmarks == "yes") %>% count(period) 
 frac_deer <- fauna_deer_only %>% filter(fractures  == "yes") %>%
   filter(`部位/名稱` %in% c("脛骨","股骨","肱骨","橈骨","上肢骨","掌骨","掌骨或蹠骨","蹠骨")) %>%
   count(period) %>% rename(fractures = n)
+post_deposit <-fauna_deer_only %>% filter(!is.na(`保存狀態`)) %>% count(period) %>%
+  rename(`post-deposition` = n)
 
-list_modif <- list(burned_deer, cutmark_deer, frac_deer, deer_NISP)
+list_modif <- list(burned_deer, cutmark_deer, frac_deer, post_deposit, deer_NISP)
 
 # join
 deer_modify <-
   list_modif %>%
   reduce(inner_join, by = 'period') %>%
   mutate(cut_per = round(cutmarks/NISP, 3) * 100, burn_per = round(burned/NISP, 3) * 100,
-         frac_per = round(fractures/NISP, 3) * 100) %>%
+         frac_per = round(fractures/NISP, 3) * 100, post_per= round(`post-deposition`/NISP, 3) * 100) %>%
   mutate(burned = paste(burned, paste0("(", burn_per, " %)")),
          cutmarks = paste(cutmarks, paste0("(", cut_per, " %)")),
-         fractures = paste(fractures, paste0("(", frac_per, " %)"))) %>%
+         fractures = paste(fractures, paste0("(", frac_per, " %)")),
+         `post-deposition` = paste(`post-deposition`, paste0("(", post_per, " %)"))) %>%
   rename(`cut marks` = cutmarks) %>%
-  select(-cut_per, -frac_per, -burn_per)
+  select(-cut_per, -frac_per, -burn_per, -post_per)
 
+# other exploration
+root <-fauna_deer_only %>% filter(str_detect(`保存狀態`, "X")) %>% count(period) %>% left_join(deer_NISP) %>%
+  mutate(root_per = n/NISP)
+weather <-fauna_deer_only %>% filter(str_detect(`保存狀態`, "$")) %>% count(period) %>% left_join(deer_NISP) %>%
+  mutate(weather_per = n/NISP)
+
+deer_age <-
+  fauna_deer_only %>%
+  filter(!is.na(`部位/左右`)&is.na(overlap)) %>% #remove overlapped fragments
+  mutate(age = case_when(str_detect(`個體/年齡`, "幼")~"young", TRUE ~ "mature")) %>%
+  filter(!is.na(age)) %>%
+  count(period, age,`部位/左右`,`部位/名稱`)
 
