@@ -64,9 +64,9 @@ fauna_combined_context_all <-
                            TRUE ~ "reptile")) %>%
   mutate(`部位/左右` = case_when(`部位/左右` == "Ｌ" ~ "L", `部位/左右` == "Ｒ" ~ "R", TRUE ~ `部位/左右`)) %>%
   mutate(category = fct_relevel(category, "deer","boar","muntjac","cattle","rat","bird","fish","turtle")) %>%
-  mutate(cutmarks = ifelse(str_detect(`人為痕跡`, "切"),"yes", "no"),
+  mutate(cutmarks = ifelse(str_detect(`人為痕跡`, "切"), "yes", "no"),
          fractures = ifelse(str_detect(`人為痕跡`, "削")|str_detect(`人為痕跡`, "砍")|
-                            str_detect(`人為痕跡`, "折"), "yes", "no"),
+                            str_detect(`人為痕跡`, "折")|str_detect(`人為痕跡`, "敲"), "yes", "no"),
          burning =  ifelse(str_detect(`人為痕跡`, "火")|str_detect(`人為痕跡`, "燒"), "yes", "no")) %>%
   filter(is.na(refitted)) # for NISP
 
@@ -102,9 +102,7 @@ fauna_combined_MNI <-
   filter(!is.na(`部位/左右`)) %>%
   count(`部位/左右`, category, `部位/名稱`)
 
-fauna_combined_context <-
-  fauna_combined_context_all %>%
-  filter(!taxa == "Rattus sp.")
+fauna_combined_context <- fauna_combined_context_all %>% filter(!taxa == "Rattus sp.") # remove rat
 
 ################### NISP & Taxonomic abundance ###################
 # barplot I: NISP by period (NISP)
@@ -336,7 +334,7 @@ weight_head <-
 #ggsave(here::here("analysis", "figures", "talk-fauna-6.png"), h = 2, w =4, units = "in")
 
 ################### Cut marks ###################
-# count cut marks throughout all taxa
+# count cut marks across taxa
 fauna_total_cut <-
   fauna_combined_context %>%
   filter(cutmarks == "yes") %>%
@@ -344,7 +342,7 @@ fauna_total_cut <-
   count() %>%
   drop_na(period, taxa)
 
-# cutmarks on deer bones
+# joints of major limbs for deer
 fauna_deer_joints <- # based on Lyman (2005)
   fauna_deer_portion  %>%
   mutate(part = paste0(`部位/名稱`,`部位/位置`)) %>%
@@ -360,13 +358,13 @@ fauna_deer_joints <- # based on Lyman (2005)
 # deer joints with cutmarks
 fauna_deer_cut <-
   fauna_deer_joints %>%
-  filter(cutmarks == "yes") %>%
+  filter(cutmarks == "yes"|str_detect("人為痕跡", "砍")) %>%
   group_by(period, joint) %>%
   count() %>%
   rename(`NISP with cutmarks` = n) %>%
   drop_na()
 
-# deer bones by portion in total
+# deer joints in total
 deer_cut_pro <-
   fauna_deer_joints %>%
   group_by(period, joint) %>%
@@ -379,23 +377,24 @@ deer_cut_pro <-
   group_by(period) %>%
   mutate(proportion  = `NISP with cutmarks`/NISP)
 
-# plot
+# plot joins with cut marks
 deer_cut_plot <-
   ggplot(deer_cut_pro, aes(x = period, y = proportion,
          fill = factor(joint, levels = (c("shoulder","elbow","wrist","hip","knee","ankle"))))) +
   geom_bar(stat = "identity", position = position_dodge2(preserve = "single")) +
   scale_color_discrete(breaks=c("CL1", "CL2", "CL3", "CL4", "CL5", "CL6")) +
-  labs(x = NULL, y = "joints with cutmarks (%NISP)") +
+  labs(x = "Cultural layer", y = "%NISP") +
   guides(fill= guide_legend(title="joints"))+
   scale_fill_viridis_d(labels=c("shoulder","elbow","wrist","hip","knee","ankle")) +
   theme_minimal()
 
-ggsave(here::here("analysis", "figures", "talk-fauna-3.png"), h = 4, w =4.5, units = "in")
+ggsave(here::here("analysis", "figures", "deer_cutmarks.png"), w =6, h = 2.5, units = "in")
 
 # t-test (for two groups only)
-res <- t.test(cut_percent ~ period, data = fauna_deer_NNISP)
+res <- deer_cut_pro %>% filter(period %in% c("CL4", "CL5"))
+t.test(proportion ~ period, data = res)
 
-################### cutmarks related to skinning ###################
+################### cut marks related to skinning ###################
 # Skeletal elements related to skinning
 deerskin_portion <-
   fauna_deer_only %>%
@@ -424,7 +423,7 @@ deer_skinning_related <-
   scale_fill_viridis_d(labels=c('carpal/\ntarsal', 'metapodials', 'neck/\ntail regions', 'phalanges')) +
   theme_minimal()
 
-# NISP with skinning cutmarks
+# NISP with skinning cut marks
 deerskin_portion_NISP_cut <-
   deerskin_portion %>%
   filter(!skinning_cut == "others") %>%
