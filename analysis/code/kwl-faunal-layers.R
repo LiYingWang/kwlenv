@@ -46,8 +46,8 @@ fauna_H_sam <-
 # combine and tidy data from midden and cultural layers
 fauna_combined_context_all <-
   rbind(fauna_sam, fauna_H_sam) %>% # combine the two datasets
-  filter(!`部位/名稱` %in% c("角","犄角","角?", "角基部")) %>%  #not associated with diet
-  #filter(!`部位/名稱`== "角基部"|!is.na(`部位/左右`)) %>% # associated with cranial parts
+  filter(!`部位/名稱` %in% c("角","犄角","角?")) %>%  #not associated with diet
+  filter(!`部位/名稱`== "角基部"|!is.na(`部位/左右`)) %>% # associated with cranial parts
   mutate(`重量(g)` = as.numeric(`重量(g)`)) %>%
   group_by(taxa) %>%
   mutate(`Weight (g)` = sum(`重量(g)`, na.rm = T)) %>%
@@ -108,11 +108,11 @@ fauna_combined_context <- fauna_combined_context_all %>% filter(!taxa == "Rattus
 # barplot I: NISP by period (NISP)
 NISP_barplot <-
   fauna_combined_context %>%
-  count (period, animal) %>%
+  count (period) %>%
   drop_na() %>%
-  ggplot(aes(x = period, y = n, fill = animal)) +
-  geom_bar(stat = "identity", #  geom_col(width = 0.6) +  #
-           position = position_dodge2(preserve = "single"), widtg = 0.6) +
+  ggplot(aes(x = period, y = n)) +
+  geom_col(width = 0.6) + #geom_bar(stat = "identity", #  geom_col(width = 0.6) +  #
+           #position = position_dodge2(preserve = "single"), widtg = 0.6) +
   labs(y = "NISP", x = NULL) +
   theme_minimal() +
   theme(legend.title=element_blank())
@@ -268,7 +268,7 @@ fauna_deer_portion <-
     `部位/名稱` %in% c("肩胛骨","肱骨","尺骨","橈骨") ~ "upper forelimb", #upper limb, "上肢骨"
     `部位/名稱` %in% c("脛骨","髖骨","股骨") ~ "upper hindlimb",
     `部位/名稱` %in% c("掌骨","掌骨或蹠骨","蹠骨","跗骨","腕骨","跟骨","astragalus") ~ "lower limb",
-    `部位/名稱` %in% c("上顎骨","上顎及齒","下顎及齒","下顎骨","枕骨","頭骨","顱骨") ~ "head", #角基部
+    `部位/名稱` %in% c("上顎骨","上顎及齒","下顎及齒","下顎骨","枕骨","頭骨","顱骨", "角基部") ~ "head", #
     `部位/名稱` %in% c("第1趾骨","第2趾骨","第3趾骨","趾骨") ~ "foot"))  #"上顎齒","下顎齒","臼齒","齒"
 
 deer_portion_plot <-
@@ -294,6 +294,11 @@ deer_long_bone <-
   mutate(zone = case_when(str_detect(`部位/位置`, "prox.")|`部位/位置` == "art." ~ "proximal",
                           str_detect(`部位/位置`, "dis.") ~ "distal", str_detect(`部位/位置`, "com.") ~ "complete",
                           str_detect(`部位/位置`, "段") ~ "medial"))
+
+long_bone_period <-
+  fauna_deer_only %>%
+  filter(`部位/名稱` == "上肢骨") %>%
+  count(period)
 
 deer_longbone_pro <-
   deer_long_bone %>%
