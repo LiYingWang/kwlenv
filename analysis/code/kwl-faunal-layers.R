@@ -54,19 +54,20 @@ fauna_combined_context_all <-
   ungroup() %>%
   mutate(period = factor(period, levels = c("CL1","CL2","CL3","CL4","CL5","CL6"), order = T)) %>%
   mutate(category = case_when(str_detect(animal, "sika")|str_detect(animal, "sambar")|
-                              str_detect(animal, "e deer")~ "deer", str_detect(animal, "fish") ~ "fish",
+                                str_detect(animal, "e deer")~ "deer", str_detect(animal, "pig")|
+                                str_detect(animal, "boar") ~ "suid", str_detect(animal, "fish") ~ "fish",
                               str_detect(animal, "cattle")|str_detect(animal, "buffalo")~ "cattle",
                               animal == "aves" ~ "bird", TRUE ~ animal)) %>%
   mutate(class = case_when(str_detect(taxa, "muntjac")|str_detect(taxa, "ammal")|str_detect(taxa, "erv")|
-                           str_detect(taxa, "Sus")|str_detect(taxa, "Rattus")|str_detect(taxa, "Rusa")|
-                           str_detect(taxa, "Bos")|str_detect(taxa, "Bubalus")~ "mammal",
+                             str_detect(taxa, "Sus")|str_detect(taxa, "Rattus")|str_detect(taxa, "Rusa")|
+                             str_detect(taxa, "Bos")|str_detect(taxa, "Bubalus")~ "mammal",
                            str_detect(category, "fish") ~ "fish", str_detect(category, "bird") ~ "bird",
                            TRUE ~ "reptile")) %>%
   mutate(`部位/左右` = case_when(`部位/左右` == "Ｌ" ~ "L", `部位/左右` == "Ｒ" ~ "R", TRUE ~ `部位/左右`)) %>%
-  mutate(category = fct_relevel(category, "deer","boar","muntjac","cattle","rat","bird","fish","turtle")) %>%
+  mutate(category = fct_relevel(category, "deer","suid","muntjac","cattle","rat","bird","fish","turtle")) %>%
   mutate(cutmarks = ifelse(str_detect(`人為痕跡`, "切"), "yes", "no"),
          fractures = ifelse(str_detect(`人為痕跡`, "削")|str_detect(`人為痕跡`, "砍")|
-                            str_detect(`人為痕跡`, "折")|str_detect(`人為痕跡`, "敲"), "yes", "no"),
+                              str_detect(`人為痕跡`, "折")|str_detect(`人為痕跡`, "敲"), "yes", "no"),
          burning =  ifelse(str_detect(`人為痕跡`, "火")|str_detect(`人為痕跡`, "燒"), "yes", "no")) %>%
   filter(is.na(refitted)) # for NISP
 
@@ -75,18 +76,21 @@ fauna_combined_taxa <-
   fauna_combined_context_all %>%
   count(taxa, `Weight (g)`) %>%
   mutate(taxa = str_replace(taxa, "cervidae", "cervid")) %>%
-  mutate(taxa = case_when(str_detect(taxa, "mm") ~ paste("Unidentified", tolower(taxa), sep =" "),
+  mutate(taxa = case_when(str_detect(taxa, "mm") ~ paste("Indeterminate", tolower(taxa), sep =" "),
                           TRUE ~ taxa)) %>%
-  mutate(`Common name` = case_when(str_detect(taxa, "Cer") ~ "Sika deer", str_detect(taxa, "Bub") ~ "Water buffalo",
-                                   str_detect(taxa, "Rus") ~ "Sambar deer", str_detect(taxa, "Ree") ~ "Muntjac",
-                                   str_detect(taxa, "Sus") ~ "Boar", str_detect(taxa, "Bos") ~ "Yellow cattle",
-                                   str_detect(taxa, "Rat") ~ "Rat", str_detect(taxa, "Pli") ~ "Catfish",
-                                   str_detect(taxa, "Act") ~ "Ray-finned fish", str_detect(taxa, "Tes") ~ "Turtle",
-                                   str_detect(taxa, "cervid") ~ "Deer family")) %>%
+  mutate(`Common name` = case_when(str_detect(taxa, "Cer") ~ "Sika deer", str_detect(taxa, "Bub") ~
+                                     "Water buffalo", str_detect(taxa, "Rus") ~ "Sambar deer",
+                                   str_detect(taxa, "Ree") ~ "Muntjac", taxa == "Sus scrofa" ~ "Wild boar",
+                                   str_detect(taxa, "Bos") ~ "Yellow cattle", str_detect(taxa, "Rat") ~
+                                     "Rat", str_detect(taxa, "Pli") ~ "Catfish", str_detect(taxa, "Act") ~
+                                     "Ray-finned fish", str_detect(taxa, "Tes") ~ "Turtle",
+                                   str_detect(taxa, "cervid") ~ "Deer", taxa == "Sus scrofa domestica" ~
+                                     "Domestic pig", taxa == "Aves" ~ "Birds")) %>%
   mutate(group = case_when(str_detect(`Common name`, "deer") ~ 1, str_detect(`Common name`, "Deer") ~ 2,
                            str_detect(taxa, "Sus") ~ 3, str_detect(taxa, "Bub")|str_detect(taxa, "Bos") ~ 4,
-                           str_detect(taxa, "munt") ~ 5, str_detect(taxa, "Rat") ~ 6, str_detect(`Common name`, "fish") ~ 7,
-                           str_detect(taxa, "Tes") ~ 8, str_detect(taxa, "Ave") ~ 9, str_detect(taxa, "large m") ~ 10,
+                           str_detect(taxa, "munt") ~ 5, str_detect(taxa, "Rat") ~ 6,
+                           str_detect(`Common name`, "fish") ~ 7, str_detect(taxa, "Tes") ~ 8,
+                           str_detect(taxa, "Ave") ~ 9, str_detect(taxa, "large m") ~ 10,
                            str_detect(taxa, "medium m") ~ 11, TRUE ~ 12)) %>%
   group_by(group) %>%
   arrange(desc(`Weight (g)`), .by_group = TRUE) %>%
@@ -161,7 +165,7 @@ verte_mammal_barplot <-
   fauna_combined_context %>%
   filter(class == "mammal") %>%
   drop_na(period, category) %>% # remove category to get absolute abundance
-  mutate(category = factor(category, levels = c("deer", "boar", "muntjac", "cattle"), ordered = TRUE)) %>%
+  mutate(category = factor(category, levels = c("deer", "suid", "muntjac", "cattle"), ordered = TRUE)) %>%
   ggplot(aes(x = period, fill = category))+
   geom_bar(position = "fill") +
   labs(y = "%NISP", x = NULL) +
@@ -270,6 +274,14 @@ fauna_deer_portion <-
     `部位/名稱` %in% c("掌骨","掌骨或蹠骨","蹠骨","跗骨","腕骨","跟骨","astragalus") ~ "lower limb",
     `部位/名稱` %in% c("上顎骨","上顎及齒","下顎及齒","下顎骨","枕骨","頭骨","顱骨", "角基部") ~ "head", #
     `部位/名稱` %in% c("第1趾骨","第2趾骨","第3趾骨","趾骨") ~ "foot"))  #"上顎齒","下顎齒","臼齒","齒"
+
+deer_metapodials <-
+  fauna_deer_only %>%
+  mutate(metapodials = case_when(`部位/名稱` == "掌骨" ~ "metacarpals", `部位/名稱` == "蹠骨" ~ "metatarsals",
+                                 `部位/名稱` == "掌骨或蹠骨" ~ "metapodials")) %>%
+  filter(!is.na(metapodials)) %>%
+  count(period, metapodials)
+
 
 deer_portion_plot <-
   fauna_deer_portion %>%
