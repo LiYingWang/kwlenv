@@ -152,7 +152,8 @@ fauna_combined_context_all <-
   ungroup() %>%
   mutate(period = factor(period, levels = c("CL1","CL2","CL3","CL4","CL5","CL6"), order = T)) %>%
   mutate(category = case_when(str_detect(animal, "sika")|str_detect(animal, "sambar")|
-                              str_detect(animal, "e deer")~ "deer", str_detect(animal, "fish") ~ "fish",
+                              str_detect(animal, "e deer")~ "deer", str_detect(animal, "pig")|
+                                str_detect(animal, "boar") ~ "suid", str_detect(animal, "fish") ~ "fish",
                               str_detect(animal, "cattle")|str_detect(animal, "buffalo")~ "cattle",
                               animal == "aves" ~ "bird", TRUE ~ animal)) %>%
   mutate(class = case_when(str_detect(taxa, "muntjac")|str_detect(taxa, "ammal")|str_detect(taxa, "erv")|
@@ -161,7 +162,7 @@ fauna_combined_context_all <-
                            str_detect(category, "fish") ~ "fish", str_detect(category, "bird") ~ "bird",
                            TRUE ~ "reptile")) %>%
   mutate(`部位/左右` = case_when(`部位/左右` == "Ｌ" ~ "L", `部位/左右` == "Ｒ" ~ "R", TRUE ~ `部位/左右`)) %>%
-  mutate(category = fct_relevel(category, "deer","boar","muntjac","cattle","rat","bird","fish","turtle")) %>%
+  mutate(category = fct_relevel(category, "deer","suid","muntjac","cattle","rat","bird","fish","turtle")) %>%
   mutate(cutmarks = ifelse(str_detect(`人為痕跡`, "切"), "yes", "no"),
          fractures = ifelse(str_detect(`人為痕跡`, "削")|str_detect(`人為痕跡`, "砍")|
                             str_detect(`人為痕跡`, "折")|str_detect(`人為痕跡`, "敲"), "yes", "no"),
@@ -182,12 +183,13 @@ fauna_combined_taxa <-
   mutate(taxa = case_when(str_detect(taxa, "mm") ~ paste("Indeterminate", tolower(taxa), sep =" "),
                           TRUE ~ taxa)) %>%
   mutate(`Common name` = case_when(str_detect(taxa, "Cer") ~ "Sika deer", str_detect(taxa, "Bub") ~ 
-                                   "Water buffalo", str_detect(taxa, "Rus") ~ "Sambar deer",   
-                                   str_detect(taxa, "Ree") ~ "Muntjac", str_detect(taxa, "Sus") ~ "Boar", 
+                                   "Water buffalo", str_detect(taxa, "Rus") ~ "Sambar deer",
+                                   str_detect(taxa, "Ree") ~ "Muntjac", taxa == "Sus scrofa" ~ "Wild boar",
                                    str_detect(taxa, "Bos") ~ "Yellow cattle", str_detect(taxa, "Rat") ~ 
                                    "Rat", str_detect(taxa, "Pli") ~ "Catfish", str_detect(taxa, "Act") ~ 
                                    "Ray-finned fish", str_detect(taxa, "Tes") ~ "Turtle",
-                                   str_detect(taxa, "cervid") ~ "Deer family")) %>%
+                                   str_detect(taxa, "cervid") ~ "Deer", taxa == "Sus scrofa domestica" ~ 
+                                   "Domestic pig", taxa == "Aves" ~ "Birds")) %>%
   mutate(group = case_when(str_detect(`Common name`, "deer") ~ 1, str_detect(`Common name`, "Deer") ~ 2,
                            str_detect(taxa, "Sus") ~ 3, str_detect(taxa, "Bub")|str_detect(taxa, "Bos") ~ 4,
                            str_detect(taxa, "munt") ~ 5, str_detect(taxa, "Rat") ~ 6, 
@@ -200,7 +202,7 @@ fauna_combined_taxa <-
   rename(Taxon = taxa, NISP = n) %>%
   select(Taxon, `Common name`,  NISP, `Weight (g)`) %>%
   bind_rows(summarise(., across(where(is.numeric), sum), across(where(is.character), ~"Total"))) %>% 
-  mutate(`Common name`= ifelse(is.na(`Common name`)|`Common name` == "Total", "-", `Common name`))
+  mutate(`Common name`= ifelse(is.na(`Common name`)|`Common name` == "Total", "-", `Common name`)) 
 
 total_NISP <- fauna_combined_taxa %>% select(NISP) %>% tail(1) #rev(fauna_combined_taxa$NISP)[1]
 unident <- fauna_combined_taxa %>% filter(str_detect(Taxon, "In")) %>% summarise(sum(NISP))
@@ -209,7 +211,7 @@ deer_fami_NISP <- fauna_combined_taxa %>%
 deer_fami_NISP_per <- round(deer_fami_NISP/(total_NISP-unident), 3)*100
 ```
 
-The faunal assemblage analyszed in this paper from Kiwulan is composed of `r total_NISP` bone fragments based on NISP, which increased over time from CL6, peaked at CL4, and then declined dramatically after CL4 (@fig-NISP-proportion: A). A similar trend was also observed in the weight of unidentified small bone fragments (@fig-NISP-proportion: B). Among the faunal remains, the deer family is the majority accounting for about `r deer_fami_NISP_per`% of the bones identified to class level, followed by boar and cattle as the second and third taxon (@tbl-counts). Within the deer family, sika deer is prevalent, with a few bones identified as muntjac and a specimen indicating a possible affiliation with sambar deer. Although sika deer was the major animal source at the site, variations in their quantities and proportions could be observed between temperoal sequences across 600 years. To further compare general patterns of dietary practices in terms of their economic values over time, the deer family were separated into two categories based on body size, deer (sika deer, sambar deer, and large deer) and muntjac, while water buffalo and yellow cattle were combined into one category, cattle. Rats (Rattus sp.) were excluded from further analyses as they are normally considered commensal animals, and their relatively intact skeletons from one single archaeological context show no direct evidence of being part of the daily diet.
+The faunal assemblage analyszed in this paper from Kiwulan is composed of `r total_NISP` bone fragments based on NISP, which increased over time from CL6, peaked at CL4, and then declined dramatically after CL4 (@fig-NISP-proportion: A). A similar trend was also observed in the weight of unidentified small bone fragments (@fig-NISP-proportion: B). Among the faunal remains, the deer family is the majority accounting for about `r deer_fami_NISP_per`% of the bones identified to class level, followed by suid and cattle as the second and third taxon (@tbl-counts). Within the deer family, sika deer is prevalent, with a few bones identified as muntjac and a specimen indicating a possible affiliation with sambar deer. Although sika deer was the major animal source at the site, variations in their quantities and proportions could be observed between temporal sequences across 600 years. To further compare general patterns of dietary practices in terms of their economic values over time, the deer family were separated into two categories based on body size, deer (sika deer, sambar deer, and large deer) and muntjac, while water buffalo and yellow cattle were combined into one category, cattle. Similarly, wild boar and domestic pig (n = 2, from CL4 and CL6) were grouped into the category of suid. Rats (Rattus sp.) were excluded from further analyses as they are normally considered commensal animals, and their relatively intact skeletons from one single archaeological context show no direct evidence of being part of the daily diet.
 
 ```{r}
 #| label: tbl-counts
@@ -234,7 +236,7 @@ mammal_count <-
   mutate(category = ifelse(is.na(category), "total", category))
 
 CL4 <- mammal_count %>% filter(period == "CL4") 
-CL4_boar <- round(CL4$n[2]/CL4$n[4], 3)*100
+CL4_boar <- round(CL4$n[3]/CL4$n[4], 3)*100
 
 # taxonomic diversity
 category_count <-
@@ -253,7 +255,7 @@ wider_mammal_count <-
   pivot_wider(id_cols = period, names_from = category, values_from = n, values_fill = 0) %>% 
   left_join(category_count)
 
-boar_reg <- summary(lm(boar ~ total, data = wider_mammal_count))
+boar_reg <- summary(lm(suid ~ total, data = wider_mammal_count))
 boar_lm <- c(round(boar_reg$adj.r.squared, 2), sprintf('%.3f', boar_reg$coefficients[,4][2]))
 munt_reg <- summary(lm(muntjac ~ total, data = wider_mammal_count))
 munt_lm <- c(round(munt_reg$adj.r.squared, 2), sprintf('%.2f', munt_reg$coefficients[,4][2]))
@@ -262,7 +264,7 @@ div_reg <- summary(lm(diversity ~ total, data = wider_mammal_count))
 div_lm <- c(round(div_reg$adj.r.squared, 2), sprintf('%.2f', div_reg$coefficients[,4][2]))
 ```
 
-For animal classes, the relative abundance shows that mammals are the primary dietary source throughout all layers, with fish as the secondary source in CL4 and birds in CL3 and CL2 (@fig-NISP-proportion: C). Fish and birds are both identified from CL5 to CL3; however, their proportions (less than 10%) are much lower compared to mammals. The reptile is represented by one piece of turtle shell found in CL4, which might not be a common food content at the site. Within those identifiable mammals, deer is the major source from CL6 to CL2 that accounts for at least 85% per layer, while CL1 is predominated only by cattle (@fig-NISP-proportion: D). Wild boar was present from CL6 to CL3, and had a higher proportion in CL4 (`r CL4_boar` %), while muntjac appeared in CL5, and was continuously present until CL2. In general, there is an increase in animal diversity in CL4 and CL5, especially in CL4, where boar and fish have slightly higher proportions compared to those in other layers. Given that the taxonomic richness, or animal diversity, could be impacted by sample size varied from layer to layer, the relationship between the number of taxa and sample size (NISP) was examined by linear regression model. The result shows no correlation between the diversity of animals and sample size ($R^2$ = `r div_lm[1]`, P = `r div_lm[2]`), which rules out the potential sample size bias.
+For animal classes, the relative abundance shows that mammals are the primary dietary source throughout all layers, with fish as the secondary source in CL4 and birds in CL3 and CL2 (@fig-NISP-proportion: C). Fish and birds are both identified from CL5 to CL3; however, their proportions (less than 10%) are much lower compared to mammals. The reptile is represented by one piece of turtle shell found in CL4, which might not be a common food content at the site. Within those identifiable mammals, deer is the major source from CL6 to CL2 that accounts for at least 85% per layer, while CL1 is predominated only by cattle (@fig-NISP-proportion: D). Suid was present from CL6 to CL3, and had a higher proportion in CL4 (`r CL4_boar` %), while muntjac appeared in CL5, and was continuously present until CL2. In general, there is an increase in animal diversity in CL4 and CL5, especially in CL4, where suid and fish have slightly higher proportions compared to those in other layers. Given that the taxonomic richness, or animal diversity, could be impacted by sample size varied from layer to layer, the relationship between the number of taxa and sample size (NISP) was examined by linear regression model. The result shows no correlation between the diversity of animals and sample size ($R^2$ = `r div_lm[1]`, P = `r div_lm[2]`), which rules out the potential sample size bias.
 
 ```{r}
 #| label: fig-NISP-proportion
@@ -319,6 +321,13 @@ deer_element_BMD <- readr::read_csv(here::here("analysis", "data", "derived_data
 cor_sur_BMD <- cor.test(deer_element_BMD$NISP, deer_element_BMD$BMD)
 survivor_cor <- round(c(cor_sur_BMD$estimate, cor_sur_BMD$p.value),2)
 
+# for deer
+fauna_deer_only <-
+  fauna_combined_context %>%
+  filter(category %in% c("deer") & !is.na(period))
+
+deer_NISP <- fauna_deer_only %>% count(period) %>% rename(NISP = n)
+
 # calculate MNE
 deer_MNE <-
   fauna_deer_only  %>%
@@ -335,11 +344,11 @@ frag_CL3_CL4 <- c(frag_index$index[2], frag_index$index[3])
 knitr::kable(fauna_ubiquity)
 ```
 
-@tbl-ubiquity shows deer had been the most frequent animal from CL6 to CL2, with the highest ubiquity in CL4 and CL5 (`r CL4_ubi_deer`), but disappeared in CL1. The second and third frequent animal are boar and muntjac. Although both animals reached their highest ubiquity in CL4 (`r CL4_ubi_boar` for boar, and `r CL4_ubi_munt` for muntjac), their presence patterns are slightly different. Boar was utilized as early as deer in CL6, declined in CL3, and disappeared in CL2, whereas muntjac showed a cultural lag, appearing one phase later than boar. Cattle had a low ubiquity in CL5 and high ubiquity in CL6. Small animals (bird, fish, and turtle) had much lower ubiquity than large animals and they had a slightly increase in ubiquity in CL3. The result of animal ubiquity correspond with the result of their quantity (NISP), suggesting that deer is the most common resource at the site, with an increase utilization of boar and muntjac in CL4. 
+@tbl-ubiquity shows deer had been the most frequent animal from CL6 to CL2, with the highest ubiquity in CL4 and CL5 (`r CL4_ubi_deer`), but disappeared in CL1. The second and third frequent animal are suid and muntjac. Although both animals reached their highest ubiquity in CL4 (`r CL4_ubi_boar` for suid, and `r CL4_ubi_munt` for muntjac), their presence patterns are slightly different. Suid was utilized as early as deer in CL6, declined in CL3, and disappeared in CL2, whereas muntjac showed a cultural lag, appearing one phase later than suid. Cattle had a low ubiquity in CL5 and high ubiquity in CL6. Small animals (bird, fish, and turtle) had much lower ubiquity than large animals and they had a slightly increase in ubiquity in CL3. The result of animal ubiquity correspond with the result of their quantity (NISP), suggesting that deer is the most common resource at the site, with an increase utilization of suid and muntjac in CL4. 
 
 Since deer is the most frequent animal at Kiwulan, the frequency of skeletal parts was examined to explore any changes in processing decisions of meat portions between different phases. Deer bones were grouped into six body portions based on their nutritional values [@Madrigal2004], including head (cranium, mandible), axial (vertebrae, sternum, ribs), upper forelimb (scapula, humerus, ulna, and radius), upper hindlimb (femur, tibia, innominate), lower limb (carpals, metacarpals, tarsals, metatarsals, astragalus, calcaneus), and foot (phalanges). The result (@fig-deer-portion: A) shows that the meaty portion, especially the upper forelimb, is the most frequent part from CL6 to CL2, followed by upper hindlimb and the less-meaty portions, lower limb and foot. The consistency of higher numbers of upper limb and lower limb suggests that those elements should be transported together (e.g., @Stiner1991). The genereally low frequency of axial element, such as vertebrae and ribs, might be likely due to a high degree of fragmentation, butchery practices, or dietary preferences. A different pattern between layers is observed in the frequency of cranial bones, for which a few present in CL6, increased to the highest number in CL4, and then decreased thereafter. In addition, lower limb and foot bones appear to be proportionally less in CL2 and CL3 compared to earlier periods. 
 
-Considering the impacted of differential bone density on preservation of skeletal elements, the relationship between the survivorship of deer skeletal elements and bone mineral density was tested by Pearson correlation. The values of bone survivorship were collected from @Lyman1994's research on deer, and calculated by dividing NISP by expected NISP, followed by multiplying 100%. The result (@fig-deer-portion: B) shows that there is no significant positive correlation ($r$ = `r survivor_cor[1]`, P = `r survivor_cor[2]`)) between bone survivorship and bone density, suggesting that density-mediated bias has little impact on the taphonomic processes of deer bones. For the degree of bone fragmentation, CL3 shows higher fragmentation (index = `r frag_CL3_CL4[1]`), while bones in CL4 is less fragmented (index = `r frag_CL3_CL4[2]`). However, the fragmentation rates across all layers are not significantly differed.  
+Considering the impacted of differential bone density on preservation of skeletal elements, the relationship between the survivorship of deer skeletal elements and bone mineral density was tested by Pearson correlation. The values of bone survivorship were collected from @Lyman1994's research on deer, and calculated by dividing NISP by expected NISP, followed by multiplying 100%. The result (@fig-deer-portion: B) shows that there is no significant positive correlation ($r$ = `r survivor_cor[1]`, P = `r survivor_cor[2]`)) between bone survivorship and bone density, suggesting that density-mediated bias has little impact on the taphonomic processes of deer bones. For the degree of bone fragmentation, CL3 shows higher fragmentation (index = `r frag_CL3_CL4[1]`), while bones in CL4 is less fragmented (index = `r frag_CL3_CL4[2]`). However, the fragmentation rates are not significantly differed between layers.  
 
 ```{r}
 #| label: fig-deer-portion
@@ -355,12 +364,6 @@ knitr::include_graphics(here::here("analysis/figures/deer_elements.png"))
 #| tbl-cap: "Number and proportion of deer bones with surface modifications at Kiwulan."
 #| tbl-cap-location: bottom
 #| tbl-colwidths: [10,20,20,20,20,10]
-
-fauna_deer_only <-
-  fauna_combined_context %>%
-  filter(category %in% c("deer") & !is.na(period))
-
-deer_NISP <- fauna_deer_only %>% count(period) %>% rename(NISP = n)
 
 # bones with surface modifications
 burned_deer <- fauna_deer_only %>% filter(burning == "yes") %>% count(period) %>% rename(burned = n)
@@ -418,26 +421,25 @@ knitr::include_graphics(here::here("analysis/figures/deer_fracture_img.png"))
 ```
 
 # Discussion
-<!--summary of key results-->
-The sampled faunal assemblage from the major residential area at Kiwulan suggests a continuation of sika deer consumption since CL6 until CL2, and then shifted to cattle in CL1. Despite deer had been a substantial part of dietary practices at Kiwulan, variations in their quantity, ubiquity, butchering patterns, and proportions relative to other animals shows changes over time. Based on radiocarbon dates and diagnostic artifacts indicating specific time [@Wang2020ornament; @Chen2007], the cultural layers were further grouped into temporal sequences relative to foreign presences for the following discussion. The sequences include the pre-European period (CL6, CL5), the European period (CL4), post-European period (CL3), and the arrival of Han-Chinese immigrants (CL2, CL1). It should be noted that the European period does not necessary means a solid European colonial control over the Kiwulan, but a broad impacts from European occupation and activities in northern Taiwan, including the involvement into the long-distance trade network, part of the tribute system, and experiences of occasional attacks in cases in Yilan. 
+<!--results and chronology -->
+The sampled faunal assemblage from the major residential area at Kiwulan suggests a continuation of sika deer consumption since CL6 until CL2, and then shifted to cattle in CL1. Despite deer had been a substantial part of dietary practices at Kiwulan, variations in their quantity, ubiquity, butchering patterns, and proportions relative to other animals shows changes that could reflect the indigenous reactions to foreign presence. Based on radiocarbon dates and diagnostic artifacts indicating specific time [@Wang2020ornament; @Chen2007], the cultural layers were further grouped into temporal sequences relative to foreign presences for the following discussion. The sequences include the pre-European period (CL6, CL5), the European period (CL4), post-European period (CL3), and the arrival of Han-Chinese immigrants (CL2, CL1). It should be noted that the European period does not necessary means a solid European colonial control over the Kiwulan, but a broad impacts from European occupation and economic activities on indigenous societies in Yilan, such as getting involvement into the long-distance trade network, being part of the tribute system, or experiences of occasional European attacks. 
 
-Faunal remains recovered from the layer associated with the European presence reveals the highest quantity, followed by the pre-European period. During the European period, in addition to the predominance of deer, an increased proportion of boar among faunal remains suggests a slightly greater reliance on boar as a secondary meat source compared to other time periods, along with a broader range of medium and small animals, such as muntjac, birds, fish, and reptiles. A similar pattern was observed in the ubiquity of animals, which shows the highest ubiquity of deer, boar and munjact remains during the European period. Interestingly, deer bones from the pre-European period, specifically CL5, presented the same ubiquity as in the European period but in only half the quantity. This might indicate consistency in the frequency and distribution of deer at the settlement scale before and after European presence, but with double the quantity of deer consumed during the European period. During the Chinese period, the low quantity of deer in CL2 and the predominate of cattle in CL1 suggest a sudden shift in dietary practices after the Chinese arrival, indicating a Chinese influence and the decline of indigenous population in this region.
+<!--summary of overall observations-->
+Faunal remains recovered from the layer associated with the European presence reveal the highest quantity, followed by the pre-European period. During the European period, in addition to the predominance of deer, an increased proportion of suid among faunal remains suggests a slightly greater reliance on suid as a secondary meat source compared to other time periods, along with a broader range of medium and small animals, such as muntjac, birds, fish, and reptiles. A similar pattern was observed in the ubiquity of animals, which shows the highest ubiquity of deer, suid, and munjact remains during the European period. Interestingly, deer bones from the pre-European period, specifically CL5, presented the same ubiquity as in the European period but in only half the quantity. This might indicate consistency in the frequency and distribution of deer at the settlement scale before and after European presence, but consumption of deer was intensified during the European period. During the Chinese period, the low quantity of deer in CL2 and the predominate of cattle in CL1 suggest a sudden shift in dietary practices after the Chinese arrival, indicating a Chinese influence and the decline of Indigenous population in this region.
 
-The skeletal part frequencies of deer demonstrate more complete carcasses processed on site during the European period and pre-European period compared to post-European period and Chinese period. The whole carcasses processing and a substantial rise in head parts (eg. crania, mandibles) in the European period align with its high quantity of deer, suggesting more deer were brought back intact to the settlement rather than selectively butchered in the field. On the other hand, the low frequency of head parts in the earliest layer and Chinese period might indicate deer could be processed at hunting location with mostly meaty (eg. upperlimb) and mid-meaty portions (eg. ribs) transported back. Interestingly, front quarters (eg. humeri, radius) are more frequently found compared to forequarters (eg. femur, tibia) among the meaty portions. In addition to culinary preferences or differential processing, a likely explanation for this is that femur and tibia were heavily fragmented due to marrow extraction for their high yields [@Madrigal2002], which could lead to underrepresented resulting from unidentifiable small fragments. 
+<!--key results of skeletal part frequencies and butchery patterns-->
+The skeletal part frequencies and butchery patterns of deer demonstrate more complete carcasses processed within the settlement during the European period and pre-European period compared to the post-European period and Chinese period. Although a more complete and evenly distributed deer parts with cut marks were found in both the European period and before European arrival, the substantial rise in head parts (e.g., crania and mandibles) and overall high quantity of bones in the European period suggests more deer were brought back intact to the settlement. The low frequency of head parts in the earliest layer and Chinese period might indicate deer could be mostly processed at the hunting location with only meaty (e.g., upper limb) and mid-meaty portions (e.g., ribs) selectively butchered and transported back. Interestingly, among the meaty portions throughout all periods, front quarters (e.g., humeri, radius) are more frequently found compared to forequarters (e.g., femur, tibia). One likely explanation is that femur and tibia might be heavily fragmented due to being broken for their high marrow yields [@Madrigal2002], leading to underestimation due to difficult identification. The behavior of marrow extraction can be supported by around one-third long bones being fractured and a moderate degree of fragmentation on average at Kiwulan. Another possibility is forequarters could be traded since deer legs as commodity were mentioned in European records [@Blusse2006, pp.220-224], but unfortunately, there was no detail about which portion of legs were normally traded. 
 
+<!--skinning-->
+The cut marks found on the lower limbs of deer at Kiwulan should be associated with the traces left by skinning processes, which confirms that deer skins were removed and likely used for trading with external traders. A large quantity of foreign goods, such as ornaments, porcelains, and metal items, supports frequent trading activities between Kiwulan residents and outsiders [@Wang2020ornament; @Chen2007]. Deer hides and venison, were important commodities in the East Asian trade network since the mid-15th century, connecting Han Chinese, Japanese, and Indigenous people, especially in western Taiwan [@Cheng2017; @Hollmann1991]. This deer trade was later monopolized by the Europeans in the 17th century, and deer products were largely exported to Japan. The evidence of the removal of deer skins at Kiwulan suggests that not only western Taiwan but also northeastern Taiwan involved and impacted by the long-distance trade. Deer bones with skinning cuts did not show a substantial increase in the European period; however, the disproportionate increase in head parts hints at a likelihood of brain tanning when preparing hides. Brain tanning is a traditional method for softening and preserving hides commonly used in many Indigenous cultures, such as North America, Southern Africa, North Asia, and Japan [@Baillargeon2010; @Badenhorst2009; @Hatt1969; @Matsumoto2016]. The present-day Bunun group in the central highlands of Taiwan has revived hide tanning based on oral history, primarily using peanuts or pig lard, with a few examples using animal brains [@Li1999, pp. 48; @Xu1994]. Although materials for tanning used by the Kavalan people are unknown due to the loss of traditions, brain tanning is a possible method given the availability of animal brains from hunting and their high-fat content. 
 
-The cutmarks found on bone portions related to skinning correspond to the description of deerskin as a commodity during the maritime era (Chen, 2004; Cheng, 2017; Höllmann, 1991). Interestingly, a similar butchering pattern related to skinning suggests that hides were produced at the same rate during the European period, despite the high demand for deerskin. However, the dramatic decrease in deer bones during the Chinese period may indicate overhunting that persisted for centuries or a decline in the Indigenous population (Zhan, 1995). Moreover, the double increase in pig bones after the European arrival may suggest an increased reliance on pigs. The shape of the third molars of pigs indicates that most were domesticated. This implies that pigs played a more significant role in the diet after Europeans arrived. Eventually, cows replaced pigs during the Chinese period, which might be a Chinese influence.
-
-
-By contextralizing the sampled faunal remains from the major residential area at Kiwulan   into the time periods with foreign contact, we can observe the 
-
-
-
-<!--population dynamics and pottery assembalges-->
+<!--decline of deer, ceramics, and population dynamics of Kiwulan-->
+The dramatic decrease in deer bones during the Chinese period may indicate overhunting that persisted for centuries or a decline in the Indigenous population (Zhan, 1995). The double increase in suid after the European arrival may suggest an increased reliance on pigs. This implies that pigs played a more significant role in the diet after Europeans arrived. Eventually, cows replaced pigs during the Chinese period, which might be a Chinese influence.
 
 <!--environmental changes in general and taphonomic issues-->
 
 <!--resilence-->
+By contextralizing the sampled faunal remains from the major residential area at Kiwulan   into the time periods with foreign contact, we can observe the 
 
 played a consistent role in subsistence strategies.
 A taxon can have high NISP but low ubiquity if concentrated in a few contexts (e.g., feasting deposits).
