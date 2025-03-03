@@ -80,7 +80,7 @@ fauna_combined_taxa <-
                           TRUE ~ taxa)) %>%
   mutate(`Common name` = case_when(str_detect(taxa, "Cer") ~ "Sika deer", str_detect(taxa, "Bub") ~
                                      "Water buffalo", str_detect(taxa, "Rus") ~ "Sambar deer",
-                                   str_detect(taxa, "Ree") ~ "Muntjac", taxa == "Sus scrofa" ~ "Wild boar",
+                                   str_detect(taxa, "Ree") ~ "Muntjac", taxa == "Sus scrofa" ~ "Suid",
                                    str_detect(taxa, "Bos") ~ "Yellow cattle", str_detect(taxa, "Rat") ~
                                      "Rat", str_detect(taxa, "Pli") ~ "Catfish", str_detect(taxa, "Act") ~
                                      "Ray-finned fish", str_detect(taxa, "Tes") ~ "Turtle",
@@ -98,7 +98,8 @@ fauna_combined_taxa <-
   rename(Taxon = taxa, NISP = n) %>%
   select(Taxon, `Common name`,  NISP, `Weight (g)`) %>%
   bind_rows(summarise(., across(where(is.numeric), sum), across(where(is.character), ~"Total"))) %>%
-  mutate(`Common name`= ifelse(is.na(`Common name`)|`Common name` == "Total", "-", `Common name`))
+  mutate(`Common name`= ifelse(is.na(`Common name`)|`Common name` == "Total", "-", `Common name`)) %>%
+  mutate(Taxon = ifelse(Taxon == "Sus scrofa", "Sus spp.", Taxon))
 
 # calculate MNI
 fauna_combined_MNI <-
@@ -112,11 +113,23 @@ fauna_combined_context <- fauna_combined_context_all %>% filter(!taxa == "Rattus
 # barplot I: NISP by period (NISP)
 NISP_barplot <-
   fauna_combined_context %>%
-  count (period) %>%
+  count(period) %>%
   drop_na() %>%
   ggplot(aes(x = period, y = n)) +
   geom_col(width = 0.6) + #geom_bar(stat = "identity", #  geom_col(width = 0.6) +  #
            #position = position_dodge2(preserve = "single"), widtg = 0.6) +
+  labs(y = "NISP", x = NULL) +
+  theme_minimal() +
+  theme(legend.title=element_blank())
+
+# barplot: across taxon
+NISP_barplot_taxon <-
+  fauna_combined_context %>%
+  count(period, category) %>%
+  drop_na() %>%
+  ggplot(aes(x = period, y = n, fill = category)) +
+  geom_bar(stat = "identity",
+           position = position_dodge2(preserve = "single"), widtg = 0.6) +
   labs(y = "NISP", x = NULL) +
   theme_minimal() +
   theme(legend.title=element_blank())
@@ -507,3 +520,8 @@ deer_age <-
   filter(!is.na(age)) %>%
   count(period, age,`部位/左右`,`部位/名稱`)
 
+# pig
+pig_bone <-
+  fauna_combined_context %>%
+  filter(category == "suid") %>%
+  count(period, `部位/名稱`, `部位/左右`, `個體/年齡`)
