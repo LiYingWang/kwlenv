@@ -56,7 +56,7 @@ fauna_combined_context_all <-
   mutate(category = case_when(str_detect(animal, "sika")|str_detect(animal, "sambar")|
                                 str_detect(animal, "e deer")~ "deer", str_detect(animal, "pig")|
                                 str_detect(animal, "boar") ~ "suid", str_detect(animal, "fish") ~ "fish",
-                              str_detect(animal, "cattle")|str_detect(animal, "buffalo")~ "cattle",
+                              str_detect(animal, "cattle")|str_detect(animal, "buffalo")~ "bovine",
                               animal == "aves" ~ "bird", TRUE ~ animal)) %>%
   mutate(class = case_when(str_detect(taxa, "muntjac")|str_detect(taxa, "ammal")|str_detect(taxa, "erv")|
                              str_detect(taxa, "Sus")|str_detect(taxa, "Rattus")|str_detect(taxa, "Rusa")|
@@ -64,7 +64,7 @@ fauna_combined_context_all <-
                            str_detect(category, "fish") ~ "fish", str_detect(category, "bird") ~ "bird",
                            TRUE ~ "reptile")) %>%
   mutate(`部位/左右` = case_when(`部位/左右` == "Ｌ" ~ "L", `部位/左右` == "Ｒ" ~ "R", TRUE ~ `部位/左右`)) %>%
-  mutate(category = fct_relevel(category, "deer","suid","muntjac","cattle","rat","bird","fish","turtle")) %>%
+  mutate(category = fct_relevel(category, "deer","suid","muntjac","bovine","rat","bird","fish","turtle")) %>%
   mutate(cutmarks = ifelse(str_detect(`人為痕跡`, "切"), "yes", "no"),
          fractures = ifelse(str_detect(`人為痕跡`, "削")|str_detect(`人為痕跡`, "砍")|
                               str_detect(`人為痕跡`, "折")|str_detect(`人為痕跡`, "敲"), "yes", "no"),
@@ -178,7 +178,7 @@ verte_mammal_barplot <-
   fauna_combined_context %>%
   filter(class == "mammal") %>%
   drop_na(period, category) %>% # remove category to get absolute abundance
-  mutate(category = factor(category, levels = c("deer", "suid", "muntjac", "cattle"), ordered = TRUE)) %>%
+  mutate(category = factor(category, levels = c("deer", "suid", "muntjac", "bovine"), ordered = TRUE)) %>%
   ggplot(aes(x = period, fill = category))+
   geom_bar(position = "fill") +
   labs(y = "%NISP", x = NULL) +
