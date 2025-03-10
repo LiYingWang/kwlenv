@@ -184,7 +184,7 @@ verte_mammal_barplot <-
   ggplot(aes(x = period, fill = category))+
   geom_bar(position = "fill") +
   labs(y = "%NISP", x = NULL) +
-  scale_y_continuous(labels = scales::percent) +
+  scale_y_continuous(labels = scales::percent) +  #scales::percent
   theme_minimal() +
   scale_fill_viridis_d(option="magma", begin = 0.2, end = 0.9) +  #plasma
   guides(fill= guide_legend(title="mammal"))
