@@ -9,6 +9,7 @@ kwl_fauna_HM <- readxl::read_excel(here::here("analysis","data","raw_data","KWL_
 kwl_fauna_broken <- readxl::read_excel(here::here("analysis","data","raw_data","broken_fauna.xlsx"), sheet = 1,
                                    col_types = "text")
 
+
 sample_p <- readr::read_csv(here::here("analysis", "data", "raw_data", "kwl-list-of-sampling-squares.csv"))
 
 kwl_chro_6 <- readxl::read_excel(here::here("analysis", "data", "raw_data", "KWL_chronology.xlsx"), sheet = 5)
@@ -99,7 +100,8 @@ fauna_combined_taxa <-
   select(Taxon, `Common name`,  NISP, `Weight (g)`) %>%
   bind_rows(summarise(., across(where(is.numeric), sum), across(where(is.character), ~"Total"))) %>%
   mutate(`Common name`= ifelse(is.na(`Common name`)|`Common name` == "Total", "-", `Common name`)) %>%
-  mutate(Taxon = ifelse(Taxon == "Sus scrofa", "Sus spp.", Taxon))
+  mutate(Taxon = ifelse(Taxon == "Reeves's muntjac", "Muntiacus reevesi", Taxon)) %>%
+  mutate(Taxon = ifelse(Taxon == "Cervus nippon", "Cervus nippon taiouanus", Taxon))
 
 # calculate MNI
 fauna_combined_MNI <-
@@ -288,13 +290,17 @@ fauna_deer_portion <-
     `部位/名稱` %in% c("上顎骨","上顎及齒","下顎及齒","下顎骨","枕骨","頭骨","顱骨", "角基部") ~ "head", #
     `部位/名稱` %in% c("第1趾骨","第2趾骨","第3趾骨","趾骨") ~ "foot"))  #"上顎齒","下顎齒","臼齒","齒"
 
+deer_axial <-
+  fauna_deer_portion %>%
+  filter(portion == "axial") %>%
+  select()
+
 deer_metapodials <-
   fauna_deer_only %>%
   mutate(metapodials = case_when(`部位/名稱` == "掌骨" ~ "metacarpals", `部位/名稱` == "蹠骨" ~ "metatarsals",
                                  `部位/名稱` == "掌骨或蹠骨" ~ "metapodials")) %>%
   filter(!is.na(metapodials)) %>%
   count(period, metapodials)
-
 
 deer_portion_plot <-
   fauna_deer_portion %>%
@@ -525,3 +531,8 @@ pig_bone <-
   fauna_combined_context %>%
   filter(category == "suid") %>%
   count(period, `部位/名稱`, `部位/左右`, `個體/年齡`)
+
+pig_M3 <-
+  fauna_combined_context %>%
+  filter(category == "suid") %>%
+  filter(str_detect(`部位/名稱`, "齒"))
