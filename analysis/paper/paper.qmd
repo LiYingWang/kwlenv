@@ -5,7 +5,7 @@ author:
       correspondence: "yes"
       email: liyingw15@gmail.com
       orcid: 0000-0001-9060-2125
-      institute: Institute of History and Philology, Academia Sinica
+      institute: Academia Sinica
 title-block-published: "Last updated"
 date: now
 date-format: long
@@ -166,20 +166,20 @@ fauna_combined_context_all <-
   ungroup() %>%
   mutate(period = factor(period, levels = c("CL1","CL2","CL3","CL4","CL5","CL6"), order = T)) %>%
   mutate(category = case_when(str_detect(animal, "sika")|str_detect(animal, "sambar")|
-                              str_detect(animal, "e deer")~ "deer", str_detect(animal, "pig")|
+                                str_detect(animal, "e deer")~ "deer", str_detect(animal, "pig")|
                                 str_detect(animal, "boar") ~ "suid", str_detect(animal, "fish") ~ "fish",
                               str_detect(animal, "cattle")|str_detect(animal, "buffalo")~ "bovine",
                               animal == "aves" ~ "bird", TRUE ~ animal)) %>%
   mutate(class = case_when(str_detect(taxa, "muntjac")|str_detect(taxa, "ammal")|str_detect(taxa, "erv")|
-                           str_detect(taxa, "Sus")|str_detect(taxa, "Rattus")|str_detect(taxa, "Rusa")|
-                           str_detect(taxa, "Bos")|str_detect(taxa, "Bubalus")~ "mammal",
+                             str_detect(taxa, "Sus")|str_detect(taxa, "Rattus")|str_detect(taxa, "Rusa")|
+                             str_detect(taxa, "Bos")|str_detect(taxa, "Bubalus")~ "mammal",
                            str_detect(category, "fish") ~ "fish", str_detect(category, "bird") ~ "bird",
                            TRUE ~ "reptile")) %>%
   mutate(`部位/左右` = case_when(`部位/左右` == "Ｌ" ~ "L", `部位/左右` == "Ｒ" ~ "R", TRUE ~ `部位/左右`)) %>%
   mutate(category = fct_relevel(category, "deer","suid","muntjac","bovine","rat","bird","fish","turtle")) %>%
   mutate(cutmarks = ifelse(str_detect(`人為痕跡`, "切"), "yes", "no"),
          fractures = ifelse(str_detect(`人為痕跡`, "削")|str_detect(`人為痕跡`, "砍")|
-                            str_detect(`人為痕跡`, "折")|str_detect(`人為痕跡`, "敲"), "yes", "no"),
+                              str_detect(`人為痕跡`, "折")|str_detect(`人為痕跡`, "敲"), "yes", "no"),
          burning =  ifelse(str_detect(`人為痕跡`, "火")|str_detect(`人為痕跡`, "燒"), "yes", "no")) %>%
   filter(is.na(refitted)) # for NISP
 
@@ -196,17 +196,17 @@ fauna_combined_taxa <-
   mutate(taxa = str_replace(taxa, "cervidae", "cervid")) %>%
   mutate(taxa = case_when(str_detect(taxa, "mm") ~ paste("Indeterminate", tolower(taxa), sep =" "),
                           TRUE ~ taxa)) %>%
-  mutate(`Common name` = case_when(str_detect(taxa, "Cer") ~ "Sika deer", str_detect(taxa, "Bub") ~ 
-                                   "Water buffalo", str_detect(taxa, "Rus") ~ "Sambar deer",
+  mutate(`Common name` = case_when(str_detect(taxa, "Cer") ~ "Sika deer", str_detect(taxa, "Bub") ~
+                                     "Water buffalo", str_detect(taxa, "Rus") ~ "Sambar deer",
                                    str_detect(taxa, "Ree") ~ "Muntjac", taxa == "Sus scrofa" ~ "Suid",
-                                   str_detect(taxa, "Bos") ~ "Yellow cattle", str_detect(taxa, "Rat") ~ 
-                                   "Rat", str_detect(taxa, "Pli") ~ "Catfish", str_detect(taxa, "Act") ~ 
-                                   "Ray-finned fish", str_detect(taxa, "Tes") ~ "Turtle",
-                                   str_detect(taxa, "cervid") ~ "Deer", taxa == "Sus scrofa domestica" ~ 
-                                   "Domestic pig", taxa == "Aves" ~ "Birds")) %>%
+                                   str_detect(taxa, "Bos") ~ "Yellow cattle", str_detect(taxa, "Rat") ~
+                                     "Rat", str_detect(taxa, "Pli") ~ "Catfish", str_detect(taxa, "Act") ~
+                                     "Ray-finned fish", str_detect(taxa, "Tes") ~ "Turtle",
+                                   str_detect(taxa, "cervid") ~ "Deer", taxa == "Sus scrofa domestica" ~
+                                     "Domestic pig", taxa == "Aves" ~ "Birds")) %>%
   mutate(group = case_when(str_detect(`Common name`, "deer") ~ 1, str_detect(`Common name`, "Deer") ~ 2,
                            str_detect(taxa, "Sus") ~ 3, str_detect(taxa, "Bub")|str_detect(taxa, "Bos") ~ 4,
-                           str_detect(taxa, "munt") ~ 5, str_detect(taxa, "Rat") ~ 6, 
+                           str_detect(taxa, "munt") ~ 5, str_detect(taxa, "Rat") ~ 6,
                            str_detect(`Common name`, "fish") ~ 7, str_detect(taxa, "Tes") ~ 8,
                            str_detect(taxa, "Ave") ~ 9, str_detect(taxa, "large m") ~ 10,
                            str_detect(taxa, "medium m") ~ 11, TRUE ~ 12)) %>%
@@ -215,22 +215,24 @@ fauna_combined_taxa <-
   ungroup () %>%
   rename(Taxon = taxa, NISP = n) %>%
   select(Taxon, `Common name`,  NISP, `Weight (g)`) %>%
-  bind_rows(summarise(., across(where(is.numeric), sum), across(where(is.character), ~"Total"))) %>% 
-  mutate(`Common name`= ifelse(is.na(`Common name`)|`Common name` == "Total", "-", `Common name`)) %>% 
-  mutate(Taxon = ifelse(Taxon == "Sus scrofa", "Sus spp.", Taxon))
+  bind_rows(summarise(., across(where(is.numeric), sum), across(where(is.character), ~"Total"))) %>%
+  mutate(`Common name`= ifelse(is.na(`Common name`)|`Common name` == "Total", "-", `Common name`)) %>%
+  mutate(Taxon = ifelse(Taxon == "Reeves's muntjac", "Muntiacus reevesi", Taxon)) %>%
+  mutate(Taxon = ifelse(Taxon == "Cervus nippon", "Cervus nippon taiouanus", Taxon))
 
 total_NISP <- fauna_combined_taxa %>% select(NISP) %>% tail(1) #rev(fauna_combined_taxa$NISP)[1]
 unident <- fauna_combined_taxa %>% filter(str_detect(Taxon, "In")) %>% summarise(sum(NISP))
 deer_NISP <- fauna_combined_taxa %>% 
   filter(str_detect(`Common name`, "eer")) %>% summarise(sum(NISP)) #|str_detect(Taxon, "Ree")
-suid_NISP <- fauna_combined_taxa %>% filter(str_detect(Taxon, "Sus spp.")) %>% summarise(sum(NISP))
+suid_NISP <- fauna_combined_taxa %>% filter(str_detect(Taxon, "Sus")) %>% summarise(sum(NISP))
 buff_NISP <- fauna_combined_taxa %>% filter(str_detect(Taxon, "Bub")) %>% summarise(sum(NISP))
 deer_NISP_per <- round(deer_NISP/(total_NISP-unident), 2)*100
 suid_NISP_per <- round(suid_NISP/(total_NISP-unident), 2)*100
+
 buff_NISP_per <- round(buff_NISP/(total_NISP-unident), 2)*100
 ```
 
-The faunal assemblage analyzed in this study from Kiwulan consists of `r total_NISP` bone fragments based on NISP (@tbl-counts). Among the identifiable bones, large deer is the majority (`r deer_NISP_per`%), followed by suid (`r suid_NISP_per`) and water buffalo (`r buff_NISP_per`). To further compare general patterns of animal consumption in terms of their economic values over time, animals within the same family with of similar body size were grouped together. Therefore, the deer category includes sika deer, sambar deer, and large deer, while water buffalo and yellow cattle were grouped into the bovine category. Similarly, domestic pig (n = 2, from CL4 and CL6) were integrated into the suid category. Rats (Rattus sp.) were excluded from further analyses as they are usually considered commensal animals, and the relatively intact skeletons recovered from a single archaeological context show no direct of being used for dietary purposes. In general, the faunal remains show that frequencies increased from CL6, peaked at CL4, and then declined dramatically after CL4 ( (@tbl-counts, @fig-NISP-proportion: A). A similar trend was observed in the weight of unidentified small bone fragments (@fig-NISP-proportion: B).  
+The faunal assemblage analyzed in this study from Kiwulan consists of `r total_NISP` bone fragments based on NISP (@tbl-counts). Among the identifiable bones, large deer is the majority (`r deer_NISP_per`%), followed by suid (`r suid_NISP_per`%) and water buffalo (`r buff_NISP_per`%). To further compare general patterns of animal consumption in terms of their economic values over time, animals within the same family with of similar body size were grouped together. Therefore, the deer category includes sika deer, sambar deer, and large deer, while water buffalo and yellow cattle were grouped into the bovine category. Similarly, domestic pigs (CL4: n = 2, CL6: n = 1) were integrated into the suid category. Rats (Rattus sp.) were excluded from further analyses as they are usually considered commensal animals, and the relatively intact skeletons recovered from a single archaeological context show no direct of being used for dietary purposes. In general, the faunal remains show that frequencies increased from CL6, peaked at CL4, and then declined dramatically after CL4 ( (@tbl-counts, @fig-NISP-proportion: A). A similar trend was observed in the weight of unidentified small bone fragments (@fig-NISP-proportion: B).  
 
 ```{r}
 #| label: tbl-counts
@@ -455,7 +457,9 @@ A consistent pattern of high frequencies of upper limb bones but low frequencies
 Deerskin trade had been prevalent in East Asia since the 14th century and was monopolized by Europeans in the 17th century when a large number of hides, especially from western Taiwan, were exported to Japan [@Cheng2017; @Hollmann1991; @Wang1981]. The cut marks identified on deer lower limbs at Kiwulan confirm the removal of deer skins, likely for trade with external traders. Moreover, the abundance of foreign goods at Kiwulan, including ornaments, porcelains, and metal items, further supports the frequent exchanges between local residents and outsiders [@Wang2020ornament; @Chen2007]. This suggests that northeastern Taiwan, like western Taiwan, was actively involved in and impacted by long-distance trade. Although lower limbs with skinning cuts did not show a substantial increase during the European period, the disproportionate rise in head parts might hint at the likelihood of brain tanning when preparing hides. Brain tanning is a traditional method for softening and preserving hides in many Indigenous cultures, including those of North America, Southern Africa, North Asia, and Japan [@Baillargeon2010; @Badenhorst2009; @Hatt1969; @Matsumoto2016]. In Taiwan, the present-day Bunun group in the central highlands has revived hide tanning based on oral history, primarily using peanuts or pig lard as tanning materials, with occasional use of animal brains [@Li1999, pp. 48; @Xu1994]. Despite the specific tanning materials used by the Kavalan people remain unknown due to the loss of traditions, brain tanning is a plausible method given the availability of deer heads from hunting. 
 
 <!-- population dynamics and arguments-->
-The high population during the European period, as inferred by the frequencies of pottery, may have contributed to the overall increase in animal use [@Wang2020pot; @Hsieh2009]. However, the impact of foreign presence can be still be identified in deer butchery patterns, the relative proportions of animals, and animal ubiquity. First, lower limbs with skinning cuts were mostly found in the European period, followed by the late pre-European phase, aligning with the rise of regional trade in the 14th–15th centuries and its intensification in the 17th century. Second, if the high frequency of deer heads during the European period was solely due to food stress from population growth, leading to increased brain or tongue consumption, a parallel rise in marrow extraction would be expected. However, long bones with fracture patterns showing 10–30% less frequent during the European and late pre-European periods than in other periods. Third, population growth would have likely led to a more proportional increase in both large and small animals. Despite high taxonomic diversity during the European period, suids showed a disproportionate rise in ubiquity, quantity, and proportion. This indicates that the trade of deerskin and meat may have led Indigenous people to rely more on suids as an alternative prey due to their comparable body size and meat return rates to deer [@Broughton2011prey]. The role of suids as a secondary resource after deer has been observed in Indigenous cultures in western Taiwan [@Chuang2021], suggesting they may have served as a supplement when deer were scarce or limited, possibly because some deer were reserved for trade.
+The high population during the European period, as inferred by the frequencies of pottery, may have contributed to the overall increase in animal use [@Wang2020pot; @Hsieh2009]. However, the impact of foreign presence can be still be identified in deer butchery patterns, the relative proportions of animals, and animal ubiquity. First, lower limbs with skinning cuts were mostly found in the European period, followed by the late pre-European phase, aligning with the rise of regional trade in the 14th–15th centuries and its intensification in the 17th century. Second, if the high frequency of deer heads during the European period was solely due to food stress from population growth, leading to increased brain or tongue consumption, a parallel rise in marrow extraction would be expected. However, long bones with fracture patterns showing 10–30% less frequent during the European and late pre-European periods than in other periods. Third, population growth would have likely led to a more proportional increase in both large and small animals. Despite high taxonomic diversity during the European period, suid remains showed a disproportionate rise in ubiquity, quantity, and proportion. This indicates that the trade of deerskin and meat may have led Indigenous people to rely more on suids as an alternative prey due to their comparable body size and meat return rates to deer [@Broughton2011prey]. 
+
+The role of suids as a secondary resource after deer has been observed in the Indigenous cultures in southwestern Taiwan during the Neolithic period and Iron Age [@Chuang2021], suggesting that suids may have served as a supplementary resource while deer remained the prioritized prey. At Kiwulan, it is possible that portions of deer were reserved for trade, limiting local consumption and leading to an increased reliance on suids. Domestic pigs were identified at Kiwulan in both the European and pre-European periods based on their much smaller third molar size (length < 30 mm) and morphology, in comparison to archaeological data from Neolithic and Iron Age sites in Taiwan [@KtLi2015; @Chuang2021]. However, a clear distinction between wild boars and domestic pigs in archaeological remains is challenging due to overlapping size ranges, regional variations, and the potential presence of hybrids [@Rowley2012; @Chuang2021]. The third molar lengths of suids found at Kiwulan (28–36 mm) may reflect such hybridization patterns. While current evidence does not clearly indicate the emergence of intensified suid management, an increase in suid utilization, either through domestication or hunting of wild individuals, is evident during the European period.
 
 After the Dutch left, the deerskin trade continued but on a much smaller scale, with around 10,000 pieces exported annually in the 18th century, which is far fewer than the 100,000 pieces exported during the European period [@Nakamura1997; @Tsao2011]. The shrinking trade market and declining population at Kiwulan may have contributed to the reduced reliance of suids, as shown in their lower proportion in the post-European period and eventual absence in the Chinese period. It should be noted that muntjac were consistently part of local subsistence, though in small numbers, until the early Chinese period. Their skins were used by many Indigenous groups such as the Tsou and Bunun for making clothing, similar to the use of deerskins [@Li1999], which may have also been practiced at Kiwulan. Although both suids and muntjacs served as substitutes for deer, their differing frequencies and ubiquity over time suggest that suids were the primary supplementary meat source, while muntjact were less frequently consumed but may have been valued for their hides in daily clothing.
 
