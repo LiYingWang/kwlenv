@@ -20,9 +20,8 @@ Our pre-print is online here:
 
 Please cite this compendium as:
 
-> Authors, (2024). *Compendium of R code and data for Title of your
-> paper goes here*. Accessed 03 Jul 2024. Online at
-> <https://doi.org/xxx/xxx>
+> Authors, (2024). *Compendium of R code and data for Preliminary Insights into Indigenous Subsistence and Colonial Encounters: A Zooarchaeological Perspective from Kiwulan in Northeastern Taiwan*. Accessed 10 Mar 2025. Online at
+> <https://github.com/LiYingWang/kwlenv>
 
 ## Contents
 
