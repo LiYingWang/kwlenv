@@ -337,7 +337,7 @@ CL4_ubi_deer <- fauna_ubiquity$CL4[1]
 CL4_ubi_boar <- fauna_ubiquity$CL4[2]
 CL4_ubi_munt <- fauna_ubiquity$CL4[3]
 
-# get the bone mineral desity data
+# get the bone mineral density data
 deer_element_BMD <- readr::read_csv(here::here("analysis", "data", "derived_data", "deer_BMD.csv"))
 cor_sur_BMD <- cor.test(deer_element_BMD$NISP, deer_element_BMD$BMD)
 survivor_cor <- round(c(cor_sur_BMD$estimate, cor_sur_BMD$p.value),2)
@@ -374,7 +374,7 @@ Considering the potential impact of differential bone density on the preservatio
 ```{r}
 #| label: fig-deer-portion
 #| echo: false
-#| fig-cap: "A: The frequency of deer skeletal parts using NISP across cultural layers at Kiwulan. B: Bone minerial density agaist %survivorship of deer remains."
+#| fig-cap: "A: The frequency of deer skeletal parts using NISP across cultural layers at Kiwulan. B: Bone mineral density against %survivorship of deer remains."
 
 knitr::include_graphics(here::here("analysis/figures/deer_elements.png"))
 ```
