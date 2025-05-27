@@ -91,9 +91,9 @@ The faunal assemblages analyzed in this study were sampled from 40 adjacent unit
 
 To explore changes in faunal remains over time, the original arbitrary excavation levels (10 cm) at Kiwulan were assigned into six natural strata or cultural layers (CL1-CL6), spanning from the 14th century to the 19th century. Each stratum was determined based on documentation of excavation depth, stratigraphic sections, sediment color and texture, radiocarbon dates, and archaeological diagnostic materials that served as time indicators. The diagnostic materials include pipes and stoneware commonly found at sites associated with European expansion in Southeast Asia, such as Anping jars and martavan  [@Sakai2012; @Ketel2011; @Dizon2016; @Hsieh1995; @Lee2021], and clay bricks associated with Chinese immigrants [@Wang2011; @Hsieh2009]. Although precisely identifying the stratum corresponding to the specific time of European arrival is challenging due to its brief duration, the strata separated based on the criteria above still provide a relatively robust framework for comparing archaeological records before and after foreign presence. Among these six temporal layers, the fourth cultural layer (CL4) is associated with the 17th century, when the Europeans occupied northern Taiwan, while the second cultural layer (CL2) corresponds to the 19th century, linked to the large influx of Chinese migrants in Yilan.
 
-Faunal assemblages were primarily quantified using the Number of Identified Specimens (NISP) method, with the Minimum Number of Individuals (MNI) applied when estimating the expected NISP at the site [@Grayson2004; @Lyman2012]. MNI determines the actual numbers of individual animals recovered from remains, while NISP offers a broader overview by considering all fragmented bone assemblages. Despite criticism for potentially overestimating the number of animals, NISP can better capture variation in species abundance with less effect from sample size [@Grayson1984; @Lyman2008]. Bone fragments identified to the class level (e.g., Mammalia, Aves) were included in the overall NISP count to reflect the full scope of vertebrate remains. However, to enable more detailed taxonomic comparisons, indeterminate Mammalia specimens were excluded from further analysis to focus on bones identified to at least the family level. Deer antlers detached from the cranium were not considered in the quantification because they were less likely to be associated with dietary practices. To reduce biases resulting from differential number and recovery of skeletal elements among animal classes, NISP values were normalized by dividing the NISP by the average number of skeletal elements in a complete individual of that class [@Grayson2004]. 
+Faunal assemblages were primarily quantified using the Number of Identified Specimens (NISP) method, with the Minimum Number of Individuals (MNI) applied when estimating the expected NISP at the site [@Grayson2004; @Lyman2012]. MNI determines the actual numbers of individual animals recovered from remains, while NISP offers a broader overview by considering all fragmented bone assemblages. Despite criticism for potentially overestimating the number of animals, NISP can better capture variation in species abundance with less effect from sample size [@Grayson1984; @Lyman2008]. Bone fragments identified to the class level (e.g., Mammalia, Aves) were included in the overall NISP count to reflect the full scope of vertebrate remains. However, to enable more meaningful taxonomic comparisons, abundance analysis focused primarily on specimens identified to at least the family level, excluding indeterminate Mammalia. Deer antlers detached from the cranium were not considered in the quantification because they were less likely to be associated with dietary practices. To reduce biases resulting from differential number and recovery of skeletal elements among animal classes, NISP values were normalized by dividing the NISP by the average number of skeletal elements in a complete individual of that class [@Grayson2004]. 
 
-To identify generalized patterns of animal consumption, measures of taxonomic abundance and ubiquity were applied. Ubiquity measures the frequency of taxa through their presence or absence in particular depositional contexts, suggesting the regularity of their use [@Mckechnie2016; @Vanderwarker2010]. In this study, ubiquity values are expressed as the percentage of units in which a given taxon is present relative to the total number of units per cultural layer. Given that mammals were the most commonly found animal resource, mammal bones identified to the family level were categorized individually for further discussion and compared in terms of their ubiquity with other animal classes.
+The measure of ubiquity was applied to identify generalized patterns of animal consumption. Ubiquity measures the frequency of taxa through their presence or absence in particular depositional contexts, suggesting the regularity of their use [@Mckechnie2016; @Vanderwarker2010]. In this study, ubiquity values are expressed as the percentage of units in which a given taxon is present relative to the total number of units per cultural layer. Given that mammals were the most commonly found animal resource, mammal bones identified to the family level were categorized individually for further discussion and compared in terms of their ubiquity with other animal classes.
 
 Since deerskin may have been a primary commodity in local regional exchange [@Cheng2017], the frequencies of skeletal parts and surface modifications of deer bones were examined to assess butchery and transport strategies. This analysis can provide insights into how Indigenous people utilized deer in response to possible high economic demand when driven by their involvement in regional trade network. Skeletal parts were quantified using NISP and classified into groups based on meat yields and portions: meaty parts (e.g., upper limbs), mid-meaty parts (e.g., ribs), and less meaty parts (e.g., skulls and lower limbs) [@Madrigal2004; @Munro2004]. Teeth without associated cranial elements were excluded to avoid overrepresentation, given their much higher preservation rate and quantities compared to other parts. Despite having less meat, lower limbs and skulls are often valued in many cultures for their marrow and soft tissues, such as the tongue and brain [@Madrigal2002]. Thus, less meaty elements were considered as an additional source of nutrition in later interpretations. Similarly, the degree of fragmentation could indicate marrow or grease extraction [@Lupo1997], and was calculated by dividing the Minimum Number of Elements (MNE) by NISP. In this approach, lower values represent a higher degree of fragmentation, and higher values indicate a lower degree of fragmentation.
 
@@ -195,30 +195,38 @@ fauna_combined_context <- fauna_combined_context_all %>% filter(!taxa == "Rattus
 fauna_combined_taxa <-
   fauna_combined_context_all %>%
   count(taxa, `Weight (g)`) %>%
-  mutate(taxa = str_replace(taxa, "cervidae", "cervid")) %>%
+  mutate(taxa = str_replace(taxa, "Large cervidae", "Cervidae large size")) %>%
+  mutate(taxa = str_replace(taxa, "Testudines", "Geoemydidae")) %>%
   mutate(taxa = case_when(str_detect(taxa, "mm") ~ paste("Indeterminate", tolower(taxa), sep =" "),
                           TRUE ~ taxa)) %>%
-  mutate(`Common name` = case_when(str_detect(taxa, "Cer") ~ "Sika deer", str_detect(taxa, "Bub") ~
+  mutate(`Common name` = case_when(str_detect(taxa, "Cervus") ~ "Sika deer", str_detect(taxa, "Bub") ~
                                      "Water buffalo", str_detect(taxa, "Rus") ~ "Sambar deer",
                                    str_detect(taxa, "Ree") ~ "Muntjac", taxa == "Sus scrofa" ~ "Suid",
                                    str_detect(taxa, "Bos") ~ "Yellow cattle", str_detect(taxa, "Rat") ~
                                      "Rat", str_detect(taxa, "Pli") ~ "Catfish", str_detect(taxa, "Act") ~
-                                     "Ray-finned fish", str_detect(taxa, "Tes") ~ "Turtle",
-                                   str_detect(taxa, "cervid") ~ "Deer", taxa == "Sus scrofa domestica" ~
-                                     "Domestic pig", taxa == "Aves" ~ "Birds")) %>%
+                                     "Ray-finned fish", str_detect(taxa, "Geo") ~ "Turtle",
+                                   str_detect(taxa, "Cervidae") ~ "Deer", taxa == "Sus scrofa domestica" ~
+                                     "Domestic pig", taxa == "Aves" ~ "Bird")) %>%
   mutate(group = case_when(str_detect(`Common name`, "deer") ~ 1, str_detect(`Common name`, "Deer") ~ 2,
-                           str_detect(taxa, "Sus") ~ 3, str_detect(taxa, "Bub")|str_detect(taxa, "Bos") ~ 4,
-                           str_detect(taxa, "munt") ~ 5, str_detect(taxa, "Rat") ~ 6,
-                           str_detect(`Common name`, "fish") ~ 7, str_detect(taxa, "Tes") ~ 8,
-                           str_detect(taxa, "Ave") ~ 9, str_detect(taxa, "large m") ~ 10,
+                           str_detect(taxa, "munt") ~ 3, str_detect(taxa, "Sus") ~ 4, 
+                           str_detect(taxa, "Bub")|str_detect(taxa, "Bos") ~ 5,  str_detect(taxa, "Rat") ~ 6,
+                           str_detect(`Common name`, "fish") ~ 7, str_detect(taxa, "Geo") ~ 8,  
+                           str_detect(taxa, "Ave") ~ 9,  str_detect(taxa, "large m") ~ 10, 
                            str_detect(taxa, "medium m") ~ 11, TRUE ~ 12)) %>%
   group_by(group) %>%
   arrange(desc(`Weight (g)`), .by_group = TRUE) %>%
   ungroup () %>%
   rename(Taxon = taxa, NISP = n) %>%
   select(Taxon, `Common name`,  NISP, `Weight (g)`) %>%
-  bind_rows(summarise(., across(where(is.numeric), sum), across(where(is.character), ~"Total"))) %>%
-  mutate(`Common name`= ifelse(is.na(`Common name`)|`Common name` == "Total", "-", `Common name`)) %>%
+  bind_rows(summarise(head(., 13), across(where(is.numeric), sum), 
+                      across(where(is.character), ~"Total determinate"))) %>%
+  bind_rows(summarise(.[14:16, ], across(where(is.numeric), sum), 
+                      across(where(is.character), ~"Total indeterminate"))) %>%
+  bind_rows(summarise(head(., 16), across(where(is.numeric), sum), 
+                      across(where(is.character), ~"Total"))) %>%
+  #bind_rows(summarise(., across(where(is.numeric), sum), across(where(is.character), ~"Total"))) %>%
+  mutate(`Weight (g)` = round(`Weight (g)`, 1)) %>% 
+  mutate(`Common name`= ifelse(is.na(`Common name`)|str_detect(`Common name`, "Total"), "-", `Common name`)) %>%
   mutate(Taxon = ifelse(Taxon == "Reeves's muntjac", "Muntiacus reevesi", Taxon)) %>%
   mutate(Taxon = ifelse(Taxon == "Cervus nippon", "Cervus nippon taiouanus", Taxon))
 
@@ -230,11 +238,10 @@ suid_NISP <- fauna_combined_taxa %>% filter(str_detect(Taxon, "Sus")) %>% summar
 buff_NISP <- fauna_combined_taxa %>% filter(str_detect(Taxon, "Bub")) %>% summarise(sum(NISP))
 deer_NISP_per <- round(deer_NISP/(total_NISP-unident), 2)*100
 suid_NISP_per <- round(suid_NISP/(total_NISP-unident), 2)*100
-
 buff_NISP_per <- round(buff_NISP/(total_NISP-unident), 2)*100
 ```
 
-The faunal assemblage analyzed in this study from Kiwulan consists of `r total_NISP` bone fragments based on NISP (@tbl-counts). Among the identifiable bones, large deer is the majority (`r deer_NISP_per`%), followed by suid (`r suid_NISP_per`%) and water buffalo (`r buff_NISP_per`%). To further compare general patterns of animal consumption based on economic values, animals from the same family and of similar body size were grouped together. Therefore, the deer category includes sika deer, sambar deer, and large deer, while water buffalo and yellow cattle were grouped into the bovine category. Similarly, domestic pigs (CL4: n = 2, CL6: n = 1) were integrated into the suid category. Rats (*Rattus sp.*) were excluded from further analyses as they are usually considered commensal animals, and the relatively intact skeletons recovered from a single archaeological context show no direct of being used for dietary purposes. In general, the faunal remains show that frequencies increased from CL6, peaked at CL4, and then declined dramatically after CL4 (@tbl-counts, @fig-NISP-proportion: A). A similar trend was observed in the weight of unidentified small bone fragments (@fig-NISP-proportion: B).  
+The faunal assemblage from the sampling area of Kiwulan consists of `r total_NISP` bone fragments, of which were identified to at least the family level (@tbl-counts). Among the mammal bones identified to the family level, large deer is the majority (`r deer_NISP_per`%), followed by suid (`r suid_NISP_per`%) and water buffalo (`r buff_NISP_per`%). To further compare general patterns of animal consumption based on economic values, animals from the same family and of similar body size were grouped together. Therefore, the deer category includes sika deer, sambar deer, and large deer, while water buffalo and yellow cattle were grouped into the bovine category. Similarly, domestic pigs (CL4: n = 2, CL6: n = 1) were integrated into the suid category. Rats (*Rattus sp.*) were excluded from further analyses as they are usually considered commensal animals, and the relatively intact skeletons recovered from a single archaeological context show no direct of being used for dietary purposes. In general, the faunal remains show that frequencies increased from CL6, peaked at CL4, and then declined dramatically after CL4 (@tbl-counts, @fig-NISP-proportion: A). A similar trend was observed in the weight of unidentified small bone fragments (@fig-NISP-proportion: B).  
 
 ```{r}
 #| label: tbl-counts
