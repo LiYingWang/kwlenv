@@ -3,7 +3,7 @@ title: "Indigenous Subsistence and Colonial Encounters: A Zooarchaeological Pers
 author:
   - Li-Ying Wang:
       correspondence: "yes"
-      email: liyingw15@gmail.com, liyingw@asihp.net
+      email: liying@mx.nthu.edu.tw, liyingw15@gmail.com
       orcid: 0000-0001-9060-2125
       institute: National Tsing Hua University, Academia Sinica
 title-block-published: "Last updated"
@@ -358,9 +358,9 @@ deer_NISP <- fauna_deer_only %>% count(period) %>% rename(NISP = n)
 deer_MNE <-
   fauna_deer_only  %>%
   filter(!is.na(`部位/左右`)&is.na(overlap)) %>% # remove overlapped fragments
-  count(period,`部位/左右`,`部位/名稱`,`部位/位置`) %>%
+  count(period,`部位/左右`,`部位/名稱`,`部位/位置`,`個體/年齡`) %>%
   group_by(period) %>%
-  summarise(MNE = sum(n), across())
+  summarise(MNE = sum(n), across( where(is.numeric), sum)) #across())
 
 deer_NISP <- fauna_deer_only %>% count(period) %>% rename(NISP = n)
 frag_index <- left_join(deer_MNE, deer_NISP) %>% mutate(index = MNE/NISP) %>% distinct(period, index) %>% 
