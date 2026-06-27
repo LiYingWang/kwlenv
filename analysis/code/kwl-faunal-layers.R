@@ -168,7 +168,8 @@ verte_class_barplot_normed <-
                            str_detect(class, "reptile") ~ n/200)) %>%
   mutate(class = factor(class, levels = c("mammal", "bird", "fish", "reptile"), ordered = TRUE)) %>%
   group_by(period) %>%
-  summarise(total_per_period = sum(NNISP), across()) %>%
+  mutate(total_per_period = sum(NNISP), across(where(is.character), ~"period")) %>%
+  #summarise(total_per_period = sum(NNISP), across(where(is.character), ~"period")) %>% #across(where(is.numeric), sum),
   mutate(`%NNISP` = (NNISP/total_per_period)*100) %>%
   ggplot(aes(x = period, y = `%NNISP`))+
   geom_bar(stat = "identity", aes(fill = class)) +
@@ -354,7 +355,7 @@ deer_MNE <-
   filter(!is.na(`部位/左右`)&is.na(overlap)) %>% #remove overlapped fragments
   count(period,`部位/左右`,`部位/名稱`,`部位/位置`) %>%
   group_by(period) %>%
-  summarise(MNE = sum(n), across())
+  summarise(MNE = sum(n), across(where(is.numeric), sum))
 
 deer_NISP <- fauna_deer_only %>% count(period) %>% rename(NISP = n)
 
