@@ -114,16 +114,24 @@ fauna_combined_context <- fauna_combined_context_all %>% filter(!taxa == "Rattus
 
 ############### Fig 2: NISP & Taxonomic abundance ###############
 # explore: across taxon
+library(viridis)
 NISP_barplot_taxon <-
   fauna_combined_context %>%
   count(period, category) %>%
   drop_na() %>%
-  ggplot(aes(x = period, y = n, fill = category)) +
+  #mutate(taxon = case_when(category %in% c("bird","fish","turtle") ~ "small animal", TRUE ~ category)) %>%
+  #group_by(period, taxon) %>%
+  #summarise(n = sum(n), .groups = "drop") %>% # combine small animal number
+  ggplot(aes(x = period, y = n,
+             fill = category)) + # factor(category, levels = c("deer", "suid", "muntjac", "bovine", "small animal"
   geom_bar(stat = "identity",
            position = position_dodge2(preserve = "single"), widtg = 0.6) +
   labs(y = "NISP", x = NULL) +
   theme_minimal() +
+  scale_fill_viridis_d() +
   theme(legend.title=element_blank())
+
+reorder(group, group, length)
 
 # Barplot A: NISP of all bones by period
 NISP_barplot <-
@@ -169,7 +177,6 @@ verte_class_barplot_normed <-
   mutate(class = factor(class, levels = c("mammal", "bird", "fish", "reptile"), ordered = TRUE)) %>%
   group_by(period) %>%
   mutate(total_per_period = sum(NNISP), across(where(is.character), ~"period")) %>%
-  #summarise(total_per_period = sum(NNISP), across(where(is.character), ~"period")) %>% #across(where(is.numeric), sum),
   mutate(`%NNISP` = (NNISP/total_per_period)*100) %>%
   ggplot(aes(x = period, y = `%NNISP`))+
   geom_bar(stat = "identity", aes(fill = class)) +
@@ -177,7 +184,6 @@ verte_class_barplot_normed <-
   theme_minimal()
 
 # Barplot D: relative abundance of mammals by period
-library(viridis)
 verte_mammal_barplot <-
   fauna_combined_context %>%
   filter(class == "mammal") %>%
